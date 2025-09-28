@@ -3,16 +3,18 @@ import useEmblaCarousel from 'embla-carousel-react';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
-import { Button } from '@/components/ui/button';
+import { Button } from './button';
 
 type CarouselApi = any;
+
 type CarouselOptions = any;
+
 type CarouselPlugin = any;
 
 type CarouselContextProps = {
   carouselRef: any;
-  api: CarouselApi | undefined;
-  opts: CarouselOptions | undefined;
+  api: any;
+  opts: any;
   orientation: 'horizontal' | 'vertical';
   scrollPrev: () => void;
   scrollNext: () => void;

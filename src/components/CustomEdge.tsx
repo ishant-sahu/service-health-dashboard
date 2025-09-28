@@ -11,7 +11,11 @@ type CustomEdgeProps = {
   sourcePosition: Position;
   targetPosition: Position;
   style?: React.CSSProperties;
-  data: any;
+  data: {
+    source: string;
+    target: string;
+    status: 'HEALTHY' | 'DEGRADED' | 'OFFLINE';
+  };
   markerEnd?: string;
 };
 

@@ -15,12 +15,7 @@ export default function EnvironmentNode({
   };
 }): React.JSX.Element {
   const isProduction = data.name === 'Production';
-  const {
-    containerHeight,
-    isMobile = false,
-    isTablet = false,
-    windowWidth = window.innerWidth,
-  } = data;
+  const { containerHeight, isMobile = false, isTablet = false } = data;
 
   let containerWidth: number, height: number;
 

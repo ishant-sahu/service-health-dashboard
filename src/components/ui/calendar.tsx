@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { DayPicker } from 'react-day-picker';
 
 import { cn } from '../../lib/utils';
-import { buttonVariants } from '@/components/ui/button';
+import { buttonVariants } from './button-variants';
 
 function Calendar({
   className,
@@ -56,10 +56,16 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        IconLeft: ({ className, ...props }: any) => (
+        IconLeft: ({
+          className,
+          ...props
+        }: React.ComponentProps<typeof ChevronLeft>) => (
           <ChevronLeft className={cn('h-4 w-4', className)} {...props} />
         ),
-        IconRight: ({ className, ...props }: any) => (
+        IconRight: ({
+          className,
+          ...props
+        }: React.ComponentProps<typeof ChevronRight>) => (
           <ChevronRight className={cn('h-4 w-4', className)} {...props} />
         ),
       }}
