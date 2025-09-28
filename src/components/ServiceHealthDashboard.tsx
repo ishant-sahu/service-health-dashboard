@@ -26,7 +26,7 @@ import {
   SELECTED_ITEM_TYPES,
 } from '../constants/dashboard';
 import { isMobile, isTablet, getLayoutConstants } from '../utils/responsive';
-import { useRealTimeData } from '../hooks/useRealTimeData';
+import { useStatusUpdates } from '../hooks/useStatusUpdates';
 
 const nodeTypes = {
   [NODE_TYPES.SERVICE]: ServiceNode,
@@ -202,12 +202,11 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
     .map((n) => n.id);
   const connectionIds = edges.map((e) => e.id);
 
-  // Use real-time data hook
-  const { data: realTimeData } = useRealTimeData({
+  // Use status updates hook
+  const { data: statusData } = useStatusUpdates({
     serviceIds,
     connectionIds,
     config: {
-      metricsInterval: LAYOUT_CONSTANTS.INTERVALS.METRICS_UPDATE,
       statusUpdateInterval: LAYOUT_CONSTANTS.INTERVALS.STATUS_UPDATE,
       statusChangeProbability:
         LAYOUT_CONSTANTS.INTERVALS.STATUS_CHANGE_PROBABILITY,
@@ -469,20 +468,20 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
     setEdges(flowEdges);
   }, [setNodes, setEdges, windowSize, calculateContainerHeight]);
 
-  // Update nodes with real-time status changes
+  // Update nodes with status changes
   useEffect(() => {
-    if (Object.keys(realTimeData.serviceStatuses).length > 0) {
+    if (Object.keys(statusData.serviceStatuses).length > 0) {
       setNodes((prevNodes) =>
         prevNodes.map((node) => {
           if (
             node.type === NODE_TYPES.SERVICE &&
-            realTimeData.serviceStatuses[node.id]
+            statusData.serviceStatuses[node.id]
           ) {
             return {
               ...node,
               data: {
                 ...node.data,
-                status: realTimeData.serviceStatuses[node.id],
+                status: statusData.serviceStatuses[node.id],
               },
             };
           }
@@ -490,15 +489,15 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
         })
       );
     }
-  }, [realTimeData.serviceStatuses, setNodes]);
+  }, [statusData.serviceStatuses, setNodes]);
 
-  // Update edges with real-time status changes
+  // Update edges with status changes
   useEffect(() => {
-    if (Object.keys(realTimeData.connectionStatuses).length > 0) {
+    if (Object.keys(statusData.connectionStatuses).length > 0) {
       setEdges((prevEdges) =>
         prevEdges.map((edge) => {
-          if (realTimeData.connectionStatuses[edge.id]) {
-            const newStatus = realTimeData.connectionStatuses[edge.id];
+          if (statusData.connectionStatuses[edge.id]) {
+            const newStatus = statusData.connectionStatuses[edge.id];
             return {
               ...edge,
               data: { ...edge.data, status: newStatus },
@@ -528,7 +527,7 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
         })
       );
     }
-  }, [realTimeData.connectionStatuses, setEdges]);
+  }, [statusData.connectionStatuses, setEdges]);
 
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     if (node.type === NODE_TYPES.SERVICE) {
@@ -711,16 +710,6 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
             {isPanelOpen && (
               <DetailsPanel
                 selectedItem={selectedItem}
-                realTimeMetrics={
-                  selectedItem &&
-                  selectedItem.type === SELECTED_ITEM_TYPES.CONNECTION
-                    ? Object.values(realTimeData.metrics).pop() || {
-                        rps: 0,
-                        latency: 0,
-                        errorRate: 0,
-                      }
-                    : { rps: 0, latency: 0, errorRate: 0 }
-                }
                 onClose={() => setIsPanelOpen(false)}
               />
             )}

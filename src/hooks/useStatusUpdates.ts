@@ -1,16 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { SERVICE_STATUS } from '../constants/dashboard';
 import {
-  dataStreamManager,
+  statusService,
   StreamEvent,
-  ServiceMetrics,
   ServiceStatusUpdate,
   ConnectionStatusUpdate,
   StreamConfig,
-} from '../services/DataStreamManager';
+} from '../services/StatusService';
 
-export interface RealTimeDataState {
-  metrics: Record<string, ServiceMetrics>;
+export interface StatusDataState {
   serviceStatuses: Record<
     string,
     (typeof SERVICE_STATUS)[keyof typeof SERVICE_STATUS]
@@ -23,15 +21,15 @@ export interface RealTimeDataState {
   lastUpdate: number;
 }
 
-export interface UseRealTimeDataOptions {
+export interface UseStatusUpdatesOptions {
   serviceIds?: string[];
   connectionIds?: string[];
   config?: Partial<StreamConfig>;
   autoStart?: boolean;
 }
 
-export interface UseRealTimeDataReturn {
-  data: RealTimeDataState;
+export interface UseStatusUpdatesReturn {
+  data: StatusDataState;
   start: () => void;
   stop: () => void;
   updateConfig: (config: Partial<StreamConfig>) => void;
@@ -41,11 +39,11 @@ export interface UseRealTimeDataReturn {
 }
 
 /**
- * Custom hook for managing real-time data streams
+ * Custom hook for managing status updates for services and connections
  */
-export const useRealTimeData = (
-  options: UseRealTimeDataOptions = {}
-): UseRealTimeDataReturn => {
+export const useStatusUpdates = (
+  options: UseStatusUpdatesOptions = {}
+): UseStatusUpdatesReturn => {
   const {
     serviceIds = [],
     connectionIds = [],
@@ -53,8 +51,7 @@ export const useRealTimeData = (
     autoStart = true,
   } = options;
 
-  const [data, setData] = useState<RealTimeDataState>({
-    metrics: {},
+  const [data, setData] = useState<StatusDataState>({
     serviceStatuses: {},
     connectionStatuses: {},
     isConnected: false,
@@ -67,25 +64,12 @@ export const useRealTimeData = (
   // Update service and connection IDs when they change
   useEffect(() => {
     if (serviceIds.length > 0) {
-      dataStreamManager.setServiceIds(serviceIds);
+      statusService.setServiceIds(serviceIds);
     }
     if (connectionIds.length > 0) {
-      dataStreamManager.setConnectionIds(connectionIds);
+      statusService.setConnectionIds(connectionIds);
     }
   }, [serviceIds, connectionIds]);
-
-  // Handle metrics updates
-  const handleMetricsUpdate = useCallback((event: StreamEvent) => {
-    const metrics = event.data as ServiceMetrics;
-    setData((prev) => ({
-      ...prev,
-      metrics: {
-        ...prev.metrics,
-        [Date.now().toString()]: metrics, // Use timestamp as key for multiple metrics
-      },
-      lastUpdate: event.timestamp,
-    }));
-  }, []);
 
   // Handle service status updates
   const handleServiceStatusUpdate = useCallback((event: StreamEvent) => {
@@ -119,38 +103,32 @@ export const useRealTimeData = (
 
     // Update configuration if provided
     if (Object.keys(config).length > 0) {
-      dataStreamManager.updateConfig(config);
+      statusService.updateConfig(config);
     }
 
     // Subscribe to events
-    const unsubscribeMetrics = dataStreamManager.subscribe(
-      'metrics',
-      handleMetricsUpdate
-    );
-    const unsubscribeServiceStatus = dataStreamManager.subscribe(
+    const unsubscribeServiceStatus = statusService.subscribe(
       'serviceStatus',
       handleServiceStatusUpdate
     );
-    const unsubscribeConnectionStatus = dataStreamManager.subscribe(
+    const unsubscribeConnectionStatus = statusService.subscribe(
       'connectionStatus',
       handleConnectionStatusUpdate
     );
 
     // Store unsubscribe functions
     unsubscribeRefs.current = [
-      unsubscribeMetrics,
       unsubscribeServiceStatus,
       unsubscribeConnectionStatus,
     ];
 
     // Start the stream
-    dataStreamManager.start();
+    statusService.start();
     setIsActive(true);
     setData((prev) => ({ ...prev, isConnected: true }));
   }, [
     isActive,
     config,
-    handleMetricsUpdate,
     handleServiceStatusUpdate,
     handleConnectionStatusUpdate,
   ]);
@@ -164,24 +142,24 @@ export const useRealTimeData = (
     unsubscribeRefs.current = [];
 
     // Stop the stream
-    dataStreamManager.stop();
+    statusService.stop();
     setIsActive(false);
     setData((prev) => ({ ...prev, isConnected: false }));
   }, [isActive]);
 
   // Update configuration
   const updateConfig = useCallback((newConfig: Partial<StreamConfig>) => {
-    dataStreamManager.updateConfig(newConfig);
+    statusService.updateConfig(newConfig);
   }, []);
 
   // Update service IDs
   const updateServiceIds = useCallback((newServiceIds: string[]) => {
-    dataStreamManager.setServiceIds(newServiceIds);
+    statusService.setServiceIds(newServiceIds);
   }, []);
 
   // Update connection IDs
   const updateConnectionIds = useCallback((newConnectionIds: string[]) => {
-    dataStreamManager.setConnectionIds(newConnectionIds);
+    statusService.setConnectionIds(newConnectionIds);
   }, []);
 
   // Auto-start if enabled
@@ -210,34 +188,13 @@ export const useRealTimeData = (
 };
 
 /**
- * Hook for getting metrics for a specific service/connection
- */
-export const useMetrics = (
-  _id: string,
-  options: UseRealTimeDataOptions = {}
-) => {
-  const { data } = useRealTimeData(options);
-
-  // Get the latest metrics for the specific ID
-  const latestMetrics = Object.values(data.metrics).pop() as
-    | ServiceMetrics
-    | undefined;
-
-  return {
-    metrics: latestMetrics,
-    isConnected: data.isConnected,
-    lastUpdate: data.lastUpdate,
-  };
-};
-
-/**
  * Hook for getting status for a specific service
  */
 export const useServiceStatus = (
   serviceId: string,
-  options: UseRealTimeDataOptions = {}
+  options: UseStatusUpdatesOptions = {}
 ) => {
-  const { data } = useRealTimeData(options);
+  const { data } = useStatusUpdates(options);
 
   return {
     status: data.serviceStatuses[serviceId],
@@ -251,9 +208,9 @@ export const useServiceStatus = (
  */
 export const useConnectionStatus = (
   connectionId: string,
-  options: UseRealTimeDataOptions = {}
+  options: UseStatusUpdatesOptions = {}
 ) => {
-  const { data } = useRealTimeData(options);
+  const { data } = useStatusUpdates(options);
 
   return {
     status: data.connectionStatuses[connectionId],

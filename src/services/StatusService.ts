@@ -1,11 +1,5 @@
 import { SERVICE_STATUS } from '../constants/dashboard';
-import { generateMetrics, getRandomStatus } from '../data/mock';
-
-export interface ServiceMetrics {
-  rps: number;
-  latency: number;
-  errorRate: number;
-}
+import { getRandomStatus } from '../data/mock';
 
 export interface ServiceStatusUpdate {
   serviceId: string;
@@ -20,23 +14,22 @@ export interface ConnectionStatusUpdate {
 }
 
 export interface StreamConfig {
-  metricsInterval: number;
   statusUpdateInterval: number;
   statusChangeProbability: number;
   connectionChangeProbability: number;
 }
 
-export type StreamEventType = 'metrics' | 'serviceStatus' | 'connectionStatus';
+export type StreamEventType = 'serviceStatus' | 'connectionStatus';
 
 export interface StreamEvent {
   type: StreamEventType;
-  data: ServiceMetrics | ServiceStatusUpdate | ConnectionStatusUpdate;
+  data: ServiceStatusUpdate | ConnectionStatusUpdate;
   timestamp: number;
 }
 
 export type StreamEventHandler = (event: StreamEvent) => void;
 
-class DataStreamManager {
+class StatusService {
   private config: StreamConfig;
   private subscribers: Map<StreamEventType, Set<StreamEventHandler>> =
     new Map();
@@ -47,7 +40,6 @@ class DataStreamManager {
 
   constructor(config: Partial<StreamConfig> = {}) {
     this.config = {
-      metricsInterval: 2500,
       statusUpdateInterval: 5000,
       statusChangeProbability: 0.1,
       connectionChangeProbability: 0.05,
@@ -55,7 +47,6 @@ class DataStreamManager {
     };
 
     // Initialize event type sets
-    this.subscribers.set('metrics', new Set());
     this.subscribers.set('serviceStatus', new Set());
     this.subscribers.set('connectionStatus', new Set());
   }
@@ -65,13 +56,22 @@ class DataStreamManager {
    */
   start(): void {
     if (this.isRunning) {
-      console.warn('DataStreamManager is already running');
+      console.warn('StatusService is already running');
       return;
     }
 
     this.isRunning = true;
-    this.startMetricsStream();
-    this.startStatusUpdateStream();
+
+    // Only start status stream if there are subscribers
+    const serviceStatusSubscribers = this.subscribers.get('serviceStatus');
+    const connectionStatusSubscribers =
+      this.subscribers.get('connectionStatus');
+    if (
+      (serviceStatusSubscribers && serviceStatusSubscribers.size > 0) ||
+      (connectionStatusSubscribers && connectionStatusSubscribers.size > 0)
+    ) {
+      this.startStatusUpdateStream();
+    }
   }
 
   /**
@@ -79,7 +79,7 @@ class DataStreamManager {
    */
   stop(): void {
     if (!this.isRunning) {
-      console.warn('DataStreamManager is not running');
+      console.warn('StatusService is not running');
       return;
     }
 
@@ -100,11 +100,37 @@ class DataStreamManager {
       throw new Error(`Unknown event type: ${eventType}`);
     }
 
+    const wasEmpty = subscribers.size === 0;
     subscribers.add(handler);
+
+    // Start the appropriate stream if this is the first subscriber
+    if (wasEmpty && this.isRunning) {
+      if (eventType === 'serviceStatus' || eventType === 'connectionStatus') {
+        this.startStatusUpdateStream();
+      }
+    }
 
     // Return unsubscribe function
     return () => {
       subscribers.delete(handler);
+
+      // Stop the stream if no more subscribers
+      if (subscribers.size === 0 && this.isRunning) {
+        if (eventType === 'serviceStatus' || eventType === 'connectionStatus') {
+          // Only stop status stream if no service or connection subscribers
+          const serviceSubscribers =
+            this.subscribers.get('serviceStatus')?.size || 0;
+          const connectionSubscribers =
+            this.subscribers.get('connectionStatus')?.size || 0;
+          if (serviceSubscribers === 0 && connectionSubscribers === 0) {
+            const interval = this.intervals.get('statusUpdate');
+            if (interval) {
+              clearInterval(interval);
+              this.intervals.delete('statusUpdate');
+            }
+          }
+        }
+      }
     };
   }
 
@@ -149,21 +175,12 @@ class DataStreamManager {
     return this.isRunning;
   }
 
-  private startMetricsStream(): void {
-    const interval = setInterval(() => {
-      const metrics = generateMetrics();
-      const event: StreamEvent = {
-        type: 'metrics',
-        data: metrics,
-        timestamp: Date.now(),
-      };
-      this.emit('metrics', event);
-    }, this.config.metricsInterval);
-
-    this.intervals.set('metrics', interval);
-  }
-
   private startStatusUpdateStream(): void {
+    // Don't start if already running
+    if (this.intervals.has('statusUpdate')) {
+      return;
+    }
+
     const interval = setInterval(() => {
       // Generate service status updates
       this.serviceIds.forEach((serviceId) => {
@@ -221,6 +238,6 @@ class DataStreamManager {
 }
 
 // Create singleton instance
-export const dataStreamManager = new DataStreamManager();
+export const statusService = new StatusService();
 
-export default DataStreamManager;
+export default StatusService;

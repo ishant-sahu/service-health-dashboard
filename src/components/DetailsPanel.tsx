@@ -14,6 +14,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { RealTimeChart, ChartDataPoint } from './charts';
+import { useConnectionMetrics } from '../hooks/useConnectionMetrics';
 
 type ServiceItem = {
   type: 'service';
@@ -29,6 +30,7 @@ type ServiceItem = {
 type ConnectionItem = {
   type: 'connection';
   data: {
+    id: string;
     source: string;
     target: string;
     status: 'HEALTHY' | 'DEGRADED' | 'OFFLINE';
@@ -39,22 +41,22 @@ type SelectedItem = ServiceItem | ConnectionItem | null;
 
 export default function DetailsPanel({
   selectedItem,
-  realTimeMetrics,
   onClose,
 }: {
   selectedItem: SelectedItem;
-  realTimeMetrics: {
-    rps: number;
-    latency: number;
-    errorRate: number;
-  };
   onClose: () => void;
 }): React.JSX.Element {
-  const [metrics, setMetrics] = useState(realTimeMetrics);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
 
+  // Use connection metrics hook - only fetch when a connection is selected
+  const { metrics: connectionMetrics } = useConnectionMetrics({
+    connectionId:
+      selectedItem?.type === 'connection' ? selectedItem.data.id : undefined,
+    enabled: selectedItem?.type === 'connection',
+  });
+
   // Add new data point to chart data
-  const addDataPoint = useCallback((newMetrics: typeof realTimeMetrics) => {
+  const addDataPoint = useCallback((newMetrics: typeof connectionMetrics) => {
     const now = Date.now();
     const timeString = new Date(now).toLocaleTimeString();
 
@@ -78,17 +80,17 @@ export default function DetailsPanel({
     setChartData([]);
   }, [selectedItem]);
 
+  // Update chart data when connection metrics change
   useEffect(() => {
-    setMetrics(realTimeMetrics);
     // Only add to chart if we have valid metrics (not the default zeros)
     if (
-      realTimeMetrics.rps > 0 ||
-      realTimeMetrics.latency > 0 ||
-      realTimeMetrics.errorRate > 0
+      connectionMetrics.rps > 0 ||
+      connectionMetrics.latency > 0 ||
+      connectionMetrics.errorRate > 0
     ) {
-      addDataPoint(realTimeMetrics);
+      addDataPoint(connectionMetrics);
     }
-  }, [realTimeMetrics, addDataPoint]);
+  }, [connectionMetrics, addDataPoint]);
 
   if (!selectedItem) {
     return (
@@ -266,7 +268,7 @@ export default function DetailsPanel({
                     <span className="text-xs font-medium">RPS</span>
                   </div>
                   <span className="text-lg font-bold text-blue-500">
-                    {metrics.rps || 0}
+                    {connectionMetrics.rps || 0}
                   </span>
                 </Card>
 
@@ -276,7 +278,7 @@ export default function DetailsPanel({
                     <span className="text-xs font-medium">Latency</span>
                   </div>
                   <span className="text-lg font-bold text-green-500">
-                    {metrics.latency || 0}ms
+                    {connectionMetrics.latency || 0}ms
                   </span>
                 </Card>
 
@@ -286,7 +288,7 @@ export default function DetailsPanel({
                     <span className="text-xs font-medium">Errors</span>
                   </div>
                   <span className="text-lg font-bold text-amber-500">
-                    {metrics.errorRate || 0}%
+                    {connectionMetrics.errorRate || 0}%
                   </span>
                 </Card>
               </div>
