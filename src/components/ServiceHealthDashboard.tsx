@@ -29,8 +29,10 @@ const nodeTypes = {
   environment: EnvironmentNode,
 };
 
+// Custom edge type for React Flow compatibility
 const edgeTypes = {
-  custom: CustomEdge as any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  custom: CustomEdge as React.ComponentType<any>,
 };
 
 type ServiceData = {
@@ -537,7 +539,7 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
                     ? '#f59e0b'
                     : '#ef4444',
               },
-            } as any;
+            } as Edge;
           }
           return edge;
         })

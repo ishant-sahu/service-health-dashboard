@@ -11,7 +11,7 @@ type CustomEdgeProps = {
   sourcePosition: Position;
   targetPosition: Position;
   style?: React.CSSProperties;
-  data: {
+  data?: {
     source: string;
     target: string;
     status: 'HEALTHY' | 'DEGRADED' | 'OFFLINE';
@@ -64,19 +64,21 @@ const CustomEdge = ({
         <div className="space-y-1">
           <div className="font-semibold">Connection</div>
           <div className="text-xs text-muted-foreground">
-            {data.source} → {data.target}
+            {data?.source || 'Unknown'} → {data?.target || 'Unknown'}
           </div>
           <div className="flex items-center gap-1">
             <div
               className={`w-2 h-2 rounded-full ${
-                data.status === 'HEALTHY'
+                data?.status === 'HEALTHY'
                   ? 'bg-green-500'
-                  : data.status === 'DEGRADED'
+                  : data?.status === 'DEGRADED'
                   ? 'bg-amber-500'
                   : 'bg-red-500'
               }`}
             />
-            <span className="text-xs font-medium">{data.status}</span>
+            <span className="text-xs font-medium">
+              {data?.status || 'Unknown'}
+            </span>
           </div>
         </div>
       </TooltipContent>
