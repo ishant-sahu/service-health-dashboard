@@ -30,12 +30,11 @@ const nodeTypes = {
 };
 
 const edgeTypes = {
-  custom: CustomEdge as React.ComponentType<
-    React.ComponentProps<typeof CustomEdge>
-  >,
+  custom: CustomEdge as any,
 };
 
 type ServiceData = {
+  id: string;
   name: string;
   tech: string;
   version: string;
@@ -44,6 +43,7 @@ type ServiceData = {
 };
 
 type ConnectionData = {
+  id: string;
   source: string;
   target: string;
   status: 'HEALTHY' | 'DEGRADED' | 'OFFLINE';
@@ -519,7 +519,6 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
               data: { ...edge.data, status: newStatus },
               animated: newStatus === 'HEALTHY',
               style: {
-                ...edge.style,
                 stroke:
                   newStatus === 'HEALTHY'
                     ? '#10b981'
@@ -530,7 +529,7 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
                 strokeOpacity: 0.8,
               },
               markerEnd: {
-                ...edge.markerEnd,
+                type: MarkerType.ArrowClosed,
                 color:
                   newStatus === 'HEALTHY'
                     ? '#10b981'
@@ -538,7 +537,7 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
                     ? '#f59e0b'
                     : '#ef4444',
               },
-            };
+            } as any;
           }
           return edge;
         })
@@ -797,11 +796,13 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
               <DetailsPanel
                 selectedItem={selectedItem}
                 realTimeMetrics={
-                  realTimeMetrics[selectedItem.data.id] || {
-                    rps: 0,
-                    latency: 0,
-                    errorRate: 0,
-                  }
+                  selectedItem
+                    ? realTimeMetrics[selectedItem.data.id] || {
+                        rps: 0,
+                        latency: 0,
+                        errorRate: 0,
+                      }
+                    : { rps: 0, latency: 0, errorRate: 0 }
                 }
                 onClose={() => setIsPanelOpen(false)}
               />

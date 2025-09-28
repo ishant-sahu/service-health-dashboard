@@ -3,44 +3,18 @@ import useEmblaCarousel from 'embla-carousel-react';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
-import { Button } from '@/components/ui/button';
+import { Button } from './button';
 
-type CarouselApi = {
-  canScrollNext: () => boolean;
-  canScrollPrev: () => boolean;
-  scrollNext: () => void;
-  scrollPrev: () => void;
-  scrollTo: (index: number) => void;
-  scrollToItem: (index: number) => void;
-  getCurrentIndex: () => number;
-  getTotalCount: () => number;
-};
+type CarouselApi = any;
 
-type CarouselOptions = {
-  align?: 'start' | 'center' | 'end';
-  axis?: 'x' | 'y';
-  containScroll?: 'trimSnaps' | 'keepSnaps' | 'loose' | 'strict' | 'none';
-  direction?: 'ltr' | 'rtl';
-  dragFree?: boolean;
-  includeGapInSize?: boolean;
-  loop?: boolean;
-  orientation?: 'horizontal' | 'vertical';
-  skipSnaps?: boolean;
-  slidesToScroll?: number;
-  speed?: number;
-  startIndex?: number;
-  watchDrag?: boolean;
-  watchResize?: boolean;
-  watchSlides?: boolean;
-  watchThrottle?: number;
-};
+type CarouselOptions = any;
 
-type CarouselPlugin = (api: CarouselApi) => void;
+type CarouselPlugin = any;
 
 type CarouselContextProps = {
-  carouselRef: React.RefObject<HTMLDivElement>;
-  api: CarouselApi | undefined;
-  opts: CarouselOptions | undefined;
+  carouselRef: any;
+  api: any;
+  opts: any;
   orientation: 'horizontal' | 'vertical';
   scrollPrev: () => void;
   scrollNext: () => void;
