@@ -1,9 +1,12 @@
 // Mock data for Service Health Dashboard
-export type ServiceStatus = 'HEALTHY' | 'DEGRADED' | 'OFFLINE';
+import { SERVICE_STATUS, NODE_TYPES } from '../constants/dashboard';
+
+export type ServiceStatus =
+  (typeof SERVICE_STATUS)[keyof typeof SERVICE_STATUS];
 
 export interface ServiceNodeData {
   id: string;
-  type: 'service' | 'environment';
+  type: (typeof NODE_TYPES)[keyof typeof NODE_TYPES];
   parent?: string;
   name: string;
   tech?: string;
@@ -133,6 +136,10 @@ export const generateMetrics = (): {
 
 // Mock status updater for real-time simulation
 export const getRandomStatus = (): ServiceStatus => {
-  const statuses: ServiceStatus[] = ['HEALTHY', 'DEGRADED', 'OFFLINE'];
+  const statuses: ServiceStatus[] = [
+    SERVICE_STATUS.HEALTHY,
+    SERVICE_STATUS.DEGRADED,
+    SERVICE_STATUS.OFFLINE,
+  ];
   return statuses[Math.floor(Math.random() * statuses.length)];
 };

@@ -2,6 +2,10 @@ import React from 'react';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Cloud, TestTube } from 'lucide-react';
+import {
+  ENVIRONMENT_NODE_CONSTANTS,
+  ENVIRONMENT_NAMES,
+} from '../constants/dashboard';
 
 export default function EnvironmentNode({
   data,
@@ -14,39 +18,62 @@ export default function EnvironmentNode({
     windowWidth?: number;
   };
 }): React.JSX.Element {
-  const isProduction = data.name === 'Production';
+  const isProduction = data.name === ENVIRONMENT_NAMES.PROD;
   const { containerHeight, isMobile = false, isTablet = false } = data;
 
   let containerWidth: number, height: number;
 
   if (isMobile) {
-    const serviceWidth = 180; // Fixed width for mobile services
-    containerWidth = 2 * serviceWidth + 40 + 40; // Two services + 40px spacing + 40px padding
-    height = containerHeight || (isProduction ? 700 : 350);
+    const serviceWidth =
+      ENVIRONMENT_NODE_CONSTANTS.SERVICE_DIMENSIONS.MOBILE_WIDTH;
+    containerWidth =
+      2 * serviceWidth +
+      ENVIRONMENT_NODE_CONSTANTS.SPACING.MOBILE_SERVICE_SPACING +
+      ENVIRONMENT_NODE_CONSTANTS.SPACING.MOBILE_PADDING;
+    height =
+      containerHeight ||
+      (isProduction
+        ? ENVIRONMENT_NODE_CONSTANTS.CONTAINER_DIMENSIONS.PRODUCTION_HEIGHT
+            .MOBILE
+        : ENVIRONMENT_NODE_CONSTANTS.CONTAINER_DIMENSIONS.STAGING_HEIGHT
+            .MOBILE);
   } else if (isTablet) {
-    const serviceWidth = 200;
-    const containerPadding = 30;
+    const serviceWidth =
+      ENVIRONMENT_NODE_CONSTANTS.SERVICE_DIMENSIONS.TABLET_WIDTH;
+    const containerPadding = ENVIRONMENT_NODE_CONSTANTS.SPACING.TABLET_PADDING;
     // Calculate container width with generous spacing to prevent overflow
-    const spacing = 80; // Increased spacing between services
-    const maxCol = 1; // For 2 columns, max column index is 1
-    const maxServiceX = containerPadding + maxCol * (serviceWidth + spacing); // containerPadding + maxCol * (serviceWidth + spacing)
-    containerWidth = maxServiceX + serviceWidth + containerPadding + 50; // maxX + serviceWidth + rightPadding + extra margin
-    height = containerHeight || (isProduction ? 600 : 300);
+    const spacing = ENVIRONMENT_NODE_CONSTANTS.SPACING.TABLET_SERVICE_SPACING;
+    const maxCol = ENVIRONMENT_NODE_CONSTANTS.GRID.TABLET_MAX_COL;
+    const maxServiceX = containerPadding + maxCol * (serviceWidth + spacing);
+    containerWidth =
+      maxServiceX +
+      serviceWidth +
+      containerPadding +
+      ENVIRONMENT_NODE_CONSTANTS.SPACING.TABLET_EXTRA_MARGIN;
+    height =
+      containerHeight ||
+      (isProduction
+        ? ENVIRONMENT_NODE_CONSTANTS.CONTAINER_DIMENSIONS.PRODUCTION_HEIGHT
+            .TABLET
+        : ENVIRONMENT_NODE_CONSTANTS.CONTAINER_DIMENSIONS.STAGING_HEIGHT
+            .TABLET);
   } else {
-    containerWidth = 1200;
-    height = containerHeight || 500;
+    containerWidth =
+      ENVIRONMENT_NODE_CONSTANTS.CONTAINER_DIMENSIONS.DESKTOP_WIDTH;
+    height =
+      containerHeight ||
+      ENVIRONMENT_NODE_CONSTANTS.CONTAINER_DIMENSIONS.PRODUCTION_HEIGHT.DESKTOP;
   }
 
   return (
     <Card
       className={`
-        p-6 
+        ${ENVIRONMENT_NODE_CONSTANTS.LAYOUT.CARD_CLASSES}
         ${
           isProduction
-            ? 'border-blue-500/30 bg-blue-500/5'
-            : 'border-purple-500/30 bg-purple-500/5'
+            ? `${ENVIRONMENT_NODE_CONSTANTS.COLORS.PRODUCTION.BORDER} ${ENVIRONMENT_NODE_CONSTANTS.COLORS.PRODUCTION.BACKGROUND}`
+            : `${ENVIRONMENT_NODE_CONSTANTS.COLORS.STAGING.BORDER} ${ENVIRONMENT_NODE_CONSTANTS.COLORS.STAGING.BACKGROUND}`
         }
-        relative backdrop-blur-sm z-0
       `}
       style={{
         zIndex: 0,
@@ -56,13 +83,19 @@ export default function EnvironmentNode({
         minHeight: `${height}px`,
       }}
     >
-      <div className="flex items-center gap-3 mb-6">
+      <div className={ENVIRONMENT_NODE_CONSTANTS.LAYOUT.HEADER_CLASSES}>
         {isProduction ? (
-          <Cloud className="h-7 w-7 md:h-8 md:w-8 lg:h-9 lg:w-9 text-blue-500" />
+          <Cloud
+            className={`${ENVIRONMENT_NODE_CONSTANTS.ICON_SIZES.MOBILE} ${ENVIRONMENT_NODE_CONSTANTS.ICON_SIZES.TABLET} ${ENVIRONMENT_NODE_CONSTANTS.ICON_SIZES.DESKTOP} ${ENVIRONMENT_NODE_CONSTANTS.COLORS.PRODUCTION.ICON}`}
+          />
         ) : (
-          <TestTube className="h-7 w-7 md:h-8 md:w-8 lg:h-9 lg:w-9 text-purple-500" />
+          <TestTube
+            className={`${ENVIRONMENT_NODE_CONSTANTS.ICON_SIZES.MOBILE} ${ENVIRONMENT_NODE_CONSTANTS.ICON_SIZES.TABLET} ${ENVIRONMENT_NODE_CONSTANTS.ICON_SIZES.DESKTOP} ${ENVIRONMENT_NODE_CONSTANTS.COLORS.STAGING.ICON}`}
+          />
         )}
-        <h2 className="text-xl md:text-2xl lg:text-3xl font-bold">
+        <h2
+          className={`${ENVIRONMENT_NODE_CONSTANTS.TEXT_SIZES.TITLE_MOBILE} ${ENVIRONMENT_NODE_CONSTANTS.TEXT_SIZES.TITLE_TABLET} ${ENVIRONMENT_NODE_CONSTANTS.TEXT_SIZES.TITLE_DESKTOP} font-bold`}
+        >
           {data.name}
         </h2>
         <Badge
@@ -70,13 +103,19 @@ export default function EnvironmentNode({
           className={`
             ${
               isProduction
-                ? 'border-blue-500 text-blue-500'
-                : 'border-purple-500 text-purple-500'
+                ? `${ENVIRONMENT_NODE_CONSTANTS.COLORS.PRODUCTION.BADGE_BORDER} ${ENVIRONMENT_NODE_CONSTANTS.COLORS.PRODUCTION.BADGE_TEXT}`
+                : `${ENVIRONMENT_NODE_CONSTANTS.COLORS.STAGING.BADGE_BORDER} ${ENVIRONMENT_NODE_CONSTANTS.COLORS.STAGING.BADGE_TEXT}`
             }
-            text-sm md:text-base lg:text-lg px-3 md:px-4 lg:px-5 py-1.5 md:py-2
+            ${ENVIRONMENT_NODE_CONSTANTS.TEXT_SIZES.BADGE_MOBILE} ${
+            ENVIRONMENT_NODE_CONSTANTS.TEXT_SIZES.BADGE_TABLET
+          } ${ENVIRONMENT_NODE_CONSTANTS.TEXT_SIZES.BADGE_DESKTOP} ${
+            ENVIRONMENT_NODE_CONSTANTS.BADGE_PADDING.MOBILE
+          } ${ENVIRONMENT_NODE_CONSTANTS.BADGE_PADDING.TABLET} ${
+            ENVIRONMENT_NODE_CONSTANTS.BADGE_PADDING.DESKTOP
+          }
           `}
         >
-          Environment
+          {ENVIRONMENT_NODE_CONSTANTS.TEXTS.ENVIRONMENT}
         </Badge>
       </div>
 

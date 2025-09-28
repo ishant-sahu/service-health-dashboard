@@ -10,27 +10,33 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
-import {
-  mockServicesData,
-  generateMetrics,
-  getRandomStatus,
-} from '../data/mock';
+import { mockServicesData } from '../data/mock';
 import ServiceNode from './ServiceNode';
 import EnvironmentNode from './EnvironmentNode';
 import DetailsPanel from './DetailsPanel';
 import CustomEdge from './CustomEdge';
-import { Button } from './ui/button';
-import { Card } from './ui/card';
+import DashboardHeader from './DashboardHeader';
 import { TooltipProvider } from './ui/tooltip';
-import { PanelRightClose, PanelRight, Activity } from 'lucide-react';
+import {
+  LAYOUT_CONSTANTS,
+  COLOR_CONSTANTS,
+  NODE_TYPES,
+  SERVICE_STATUS,
+  ENVIRONMENT_IDS,
+  SELECTED_ITEM_TYPES,
+} from '../constants/dashboard';
+import { isMobile, isTablet, getLayoutConstants } from '../utils/responsive';
+import { useStatusUpdates } from '../hooks/useStatusUpdates';
 
 const nodeTypes = {
-  service: ServiceNode,
-  environment: EnvironmentNode,
+  [NODE_TYPES.SERVICE]: ServiceNode,
+  [NODE_TYPES.ENVIRONMENT]: EnvironmentNode,
 };
 
+// Custom edge type for React Flow compatibility
 const edgeTypes = {
-  custom: CustomEdge as any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  custom: CustomEdge as React.ComponentType<any>,
 };
 
 type ServiceData = {
@@ -38,7 +44,7 @@ type ServiceData = {
   name: string;
   tech: string;
   version: string;
-  status: 'HEALTHY' | 'DEGRADED' | 'OFFLINE';
+  status: (typeof SERVICE_STATUS)[keyof typeof SERVICE_STATUS];
   parent: string;
 };
 
@@ -46,12 +52,12 @@ type ConnectionData = {
   id: string;
   source: string;
   target: string;
-  status: 'HEALTHY' | 'DEGRADED' | 'OFFLINE';
+  status: (typeof SERVICE_STATUS)[keyof typeof SERVICE_STATUS];
 };
 
 type SelectedItem =
-  | { type: 'service'; data: ServiceData }
-  | { type: 'connection'; data: ConnectionData }
+  | { type: typeof SELECTED_ITEM_TYPES.SERVICE; data: ServiceData }
+  | { type: typeof SELECTED_ITEM_TYPES.CONNECTION; data: ConnectionData }
   | null;
 
 const ServiceHealthDashboard = (): React.JSX.Element => {
@@ -65,48 +71,24 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
 
   // Function to calculate dynamic container height based on services
   const calculateContainerHeight = useCallback(
-    (serviceCount: number, isMobile: boolean, isTablet: boolean): number => {
-      let containerPadding: number,
-        headerHeight: number,
-        serviceHeight: number,
-        colsPerRow: number;
-
-      if (isMobile) {
-        containerPadding = 20;
-        headerHeight = 60;
-        serviceHeight = 140;
-        colsPerRow = 2;
-      } else if (isTablet) {
-        containerPadding = 30;
-        headerHeight = 70;
-        serviceHeight = 150;
-        colsPerRow = 2;
-      } else {
-        containerPadding = 40;
-        headerHeight = 80;
-        serviceHeight = 160;
-        colsPerRow = 3;
-      }
+    (serviceCount: number, windowWidth: number): number => {
+      const layout = getLayoutConstants(windowWidth);
 
       // Calculate number of rows needed
-      const rows = Math.ceil(serviceCount / colsPerRow);
+      const rows = Math.ceil(serviceCount / layout.COLS_PER_ROW);
 
       // Calculate total height needed
       // First row: containerPadding + headerHeight + serviceHeight
       // Additional rows: (rows - 1) * (serviceHeight + padding)
       // Bottom padding: containerPadding
-      const paddingBetweenRows = isMobile ? 20 : isTablet ? 30 : 40;
       const totalHeight =
-        containerPadding +
-        headerHeight +
-        serviceHeight +
-        (rows - 1) * (serviceHeight + paddingBetweenRows) +
-        containerPadding;
+        layout.CONTAINER_PADDING +
+        layout.HEADER_HEIGHT +
+        layout.SERVICE_HEIGHT +
+        (rows - 1) * (layout.SERVICE_HEIGHT + layout.SPACING_BETWEEN_ROWS) +
+        layout.CONTAINER_PADDING;
 
-      // Add minimum height buffer to ensure services don't feel cramped
-      const minHeight = isMobile ? 200 : isTablet ? 250 : 300;
-
-      const finalHeight = Math.max(totalHeight, minHeight);
+      const finalHeight = Math.max(totalHeight, layout.MIN_HEIGHT);
 
       return finalHeight;
     },
@@ -130,73 +112,65 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
           const node = nodes.find((n) => n.id === change.id);
           if (
             node &&
-            node.type === 'service' &&
+            node.type === NODE_TYPES.SERVICE &&
             'parentNode' in node &&
             node.parentNode
           ) {
-            const isMobile = windowSize.width < 768;
-            const isTablet = windowSize.width >= 768 && windowSize.width < 1024;
-
-            let containerPadding: number,
-              headerHeight: number,
-              serviceWidth: number,
-              serviceHeight: number,
-              containerWidth: number,
-              containerHeight: number;
+            const mobile = isMobile(windowSize.width);
+            const tablet = isTablet(windowSize.width);
+            const layout = getLayoutConstants(windowSize.width);
 
             // Get service count for the parent environment
             const parentServices = nodes.filter(
               (n) =>
-                n.type === 'service' &&
+                n.type === NODE_TYPES.SERVICE &&
                 'parentNode' in n &&
                 n.parentNode === node.parentNode
             );
             const dynamicHeight = calculateContainerHeight(
               parentServices.length,
-              isMobile,
-              isTablet
+              windowSize.width
             );
 
-            if (isMobile) {
-              containerPadding = 20;
-              headerHeight = 60;
-              serviceWidth = 180; // Fixed width for mobile services
-              serviceHeight = 140;
+            let containerWidth: number;
+
+            if (mobile) {
               // Calculate container width with generous spacing to prevent overflow
               const spacing = 80; // Increased spacing between services
-              const maxCol = 1; // For 2 columns, max column index is 1
+              const maxCol = layout.COLS_PER_ROW - 1; // For 2 columns, max column index is 1
               const maxServiceX =
-                containerPadding + maxCol * (serviceWidth + spacing); // containerPadding + maxCol * (serviceWidth + spacing)
+                layout.CONTAINER_PADDING +
+                maxCol * (layout.SERVICE_WIDTH + spacing);
               containerWidth =
-                maxServiceX + serviceWidth + containerPadding + 50; // maxX + serviceWidth + rightPadding + extra margin
-              containerHeight = dynamicHeight;
-            } else if (isTablet) {
-              containerPadding = 30;
-              headerHeight = 70;
-              serviceWidth = 200;
-              serviceHeight = 150;
+                maxServiceX +
+                layout.SERVICE_WIDTH +
+                layout.CONTAINER_PADDING +
+                50;
+            } else if (tablet) {
               // Calculate container width with generous spacing to prevent overflow
               const spacing = 80; // Increased spacing between services
-              const maxCol = 1; // For 2 columns, max column index is 1
+              const maxCol = layout.COLS_PER_ROW - 1; // For 2 columns, max column index is 1
               const maxServiceX =
-                containerPadding + maxCol * (serviceWidth + spacing); // containerPadding + maxCol * (serviceWidth + spacing)
+                layout.CONTAINER_PADDING +
+                maxCol * (layout.SERVICE_WIDTH + spacing);
               containerWidth =
-                maxServiceX + serviceWidth + containerPadding + 50; // maxX + serviceWidth + rightPadding + extra margin
-              containerHeight = dynamicHeight;
+                maxServiceX +
+                layout.SERVICE_WIDTH +
+                layout.CONTAINER_PADDING +
+                50;
             } else {
-              containerPadding = 40;
-              headerHeight = 80;
-              serviceWidth = 240;
-              serviceHeight = 160;
-              containerWidth = Math.min(windowSize.width - 200, 1200);
-              containerHeight = dynamicHeight;
+              containerWidth = Math.min(
+                windowSize.width - LAYOUT_CONSTANTS.DESKTOP.VIEWPORT_MARGIN,
+                LAYOUT_CONSTANTS.DESKTOP.MAX_CONTAINER_WIDTH
+              );
             }
 
-            const minX = containerPadding;
-            const minY = containerPadding + headerHeight;
-            const maxX = containerWidth - serviceWidth - containerPadding;
+            const minX = layout.CONTAINER_PADDING;
+            const minY = layout.CONTAINER_PADDING + layout.HEADER_HEIGHT;
+            const maxX =
+              containerWidth - layout.SERVICE_WIDTH - layout.CONTAINER_PADDING;
             // Allow bottom row to reach its intended position by using a more generous maxY
-            const maxY = containerHeight - serviceHeight;
+            const maxY = dynamicHeight - layout.SERVICE_HEIGHT;
 
             if ('position' in change && change.position) {
               change.position.x = Math.max(
@@ -220,90 +194,107 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
 
   const [selectedItem, setSelectedItem] = useState<SelectedItem>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const [realTimeMetrics, setRealTimeMetrics] = useState<
-    Record<
-      string,
-      {
-        rps: number;
-        latency: number;
-        errorRate: number;
-      }
-    >
-  >({});
   const [isDarkMode, setIsDarkMode] = useState(true);
+
+  // Get service and connection IDs for real-time data
+  const serviceIds = nodes
+    .filter((n) => n.type === NODE_TYPES.SERVICE)
+    .map((n) => n.id);
+  const connectionIds = edges.map((e) => e.id);
+
+  // Use status updates hook
+  const { data: statusData } = useStatusUpdates({
+    serviceIds,
+    connectionIds,
+    config: {
+      statusUpdateInterval: LAYOUT_CONSTANTS.INTERVALS.STATUS_UPDATE,
+      statusChangeProbability:
+        LAYOUT_CONSTANTS.INTERVALS.STATUS_CHANGE_PROBABILITY,
+      connectionChangeProbability:
+        LAYOUT_CONSTANTS.INTERVALS.EDGE_CHANGE_PROBABILITY,
+    },
+  });
 
   const initializeData = useCallback(() => {
     const serviceNodes = mockServicesData.nodes.filter(
-      (node) => node.type === 'service'
+      (node) => node.type === NODE_TYPES.SERVICE
     );
     const environmentNodes = mockServicesData.nodes.filter(
-      (node) => node.type === 'environment'
+      (node) => node.type === NODE_TYPES.ENVIRONMENT
     );
 
-    const isMobile = windowSize.width < 768;
-    const isTablet = windowSize.width >= 768 && windowSize.width < 1024;
+    const mobile = isMobile(windowSize.width);
+    const tablet = isTablet(windowSize.width);
 
     // Calculate dynamic heights for each environment
     const prodServicesList = serviceNodes.filter(
-      (node) => node.parent === 'prod-env'
+      (node) => node.parent === ENVIRONMENT_IDS.PROD
     );
     const stagingServicesList = serviceNodes.filter(
-      (node) => node.parent === 'staging-env'
+      (node) => node.parent === ENVIRONMENT_IDS.STAGING
     );
 
     const prodHeight = calculateContainerHeight(
       prodServicesList.length,
-      isMobile,
-      isTablet
+      windowSize.width
     );
     const stagingHeight = calculateContainerHeight(
       stagingServicesList.length,
-      isMobile,
-      isTablet
+      windowSize.width
     );
 
     let envPositions: Record<string, { x: number; y: number }>;
-    if (isMobile) {
-      // Calculate container width needed for two columns with increased spacing
-      // const serviceWidth = 180; // Fixed width for mobile services
-      // const containerWidth = 2 * serviceWidth + 40 + 40; // Two services + 40px spacing + 40px padding
-      const centerX = 20; // 20px margin from left edge
+    if (mobile) {
+      const centerX = LAYOUT_CONSTANTS.ENVIRONMENT_POSITIONS.MOBILE.CENTER_X;
+      const topY = LAYOUT_CONSTANTS.ENVIRONMENT_POSITIONS.MOBILE.TOP_Y;
       envPositions = {
-        'prod-env': { x: centerX, y: 20 },
-        'staging-env': { x: centerX, y: 20 + prodHeight + 20 }, // 20px gap between environments
+        [ENVIRONMENT_IDS.PROD]: { x: centerX, y: topY },
+        [ENVIRONMENT_IDS.STAGING]: {
+          x: centerX,
+          y: topY + prodHeight + LAYOUT_CONSTANTS.ENVIRONMENT_GAPS.MOBILE,
+        },
       };
-    } else if (isTablet) {
-      // Center containers horizontally for tablet
-      const tabletContainerWidth = 590; // Calculated container width for tablet
-      const centerX = (windowSize.width - tabletContainerWidth) / 2;
+    } else if (tablet) {
+      const containerWidth =
+        LAYOUT_CONSTANTS.ENVIRONMENT_POSITIONS.TABLET.CONTAINER_WIDTH;
+      const centerX = (windowSize.width - containerWidth) / 2;
+      const topY = LAYOUT_CONSTANTS.TABLET.CONTAINER_PADDING;
       envPositions = {
-        'prod-env': { x: centerX, y: 30 },
-        'staging-env': { x: centerX, y: 30 + prodHeight + 30 }, // 30px gap between environments
+        [ENVIRONMENT_IDS.PROD]: { x: centerX, y: topY },
+        [ENVIRONMENT_IDS.STAGING]: {
+          x: centerX,
+          y: topY + prodHeight + LAYOUT_CONSTANTS.ENVIRONMENT_GAPS.TABLET,
+        },
       };
     } else {
-      // Center containers horizontally for desktop
-      const desktopContainerWidth = 1200; // Desktop container width
-      const centerX = (windowSize.width - desktopContainerWidth) / 2;
+      const containerWidth =
+        LAYOUT_CONSTANTS.ENVIRONMENT_POSITIONS.DESKTOP.CONTAINER_WIDTH;
+      const centerX = (windowSize.width - containerWidth) / 2;
+      const topY = LAYOUT_CONSTANTS.ENVIRONMENT_POSITIONS.DESKTOP.TOP_Y;
       envPositions = {
-        'prod-env': { x: centerX, y: 50 },
-        'staging-env': { x: centerX, y: 50 + prodHeight + 50 }, // 50px gap between environments
+        [ENVIRONMENT_IDS.PROD]: { x: centerX, y: topY },
+        [ENVIRONMENT_IDS.STAGING]: {
+          x: centerX,
+          y: topY + prodHeight + LAYOUT_CONSTANTS.ENVIRONMENT_GAPS.DESKTOP,
+        },
       };
     }
 
     const flowNodes: Node[] = [];
 
     environmentNodes.forEach((env) => {
-      const dynamicHeight = env.id === 'prod-env' ? prodHeight : stagingHeight;
+      const dynamicHeight =
+        env.id === ENVIRONMENT_IDS.PROD ? prodHeight : stagingHeight;
 
       flowNodes.push({
         id: env.id,
-        type: 'environment',
+        type: NODE_TYPES.ENVIRONMENT,
         position: envPositions[env.id],
         data: {
           ...env,
           containerHeight: dynamicHeight,
-          isMobile,
-          isTablet,
+          isMobile: mobile,
+          isTablet: tablet,
           windowWidth: windowSize.width,
         },
         draggable: false,
@@ -311,75 +302,68 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
     });
 
     prodServicesList.forEach((service, index: number) => {
-      let row: number,
-        col: number,
-        serviceWidth: number,
-        serviceHeight: number,
-        containerPadding: number,
-        headerHeight: number,
-        containerWidth: number,
-        colsPerRow: number;
+      const layout = getLayoutConstants(windowSize.width);
 
-      if (isMobile) {
-        row = Math.floor(index / 2);
-        col = index % 2;
-        serviceWidth = 180; // Fixed width for mobile services
-        containerPadding = 20;
-        headerHeight = 60;
-        serviceHeight = 140;
-        containerWidth = 2 * serviceWidth + 40 + 40; // Two services + 40px spacing + 40px padding
-        colsPerRow = 2;
-      } else if (isTablet) {
-        row = Math.floor(index / 2);
-        col = index % 2;
-        serviceWidth = 200;
-        containerPadding = 30;
-        headerHeight = 70;
-        serviceHeight = 150;
+      const row = Math.floor(index / layout.COLS_PER_ROW);
+      const col = index % layout.COLS_PER_ROW;
+
+      let containerWidth: number;
+
+      if (mobile) {
+        containerWidth =
+          layout.CONTAINER_WIDTH_MULTIPLIER * layout.SERVICE_WIDTH +
+          layout.CONTAINER_WIDTH_SPACING +
+          layout.CONTAINER_WIDTH_PADDING;
+      } else if (tablet) {
         // Calculate container width based on service count and spacing
         const spacing = 50; // Minimum spacing between services
-        const maxCol = Math.min(1, 1); // For 2 columns, max column index is 1
-        const maxServiceX = 30 + maxCol * (serviceWidth + spacing); // containerPadding + maxCol * (serviceWidth + spacing)
-        containerWidth = maxServiceX + serviceWidth + 30; // maxX + serviceWidth + rightPadding
-        colsPerRow = 2;
+        const maxCol = layout.COLS_PER_ROW - 1;
+        const maxServiceX =
+          layout.CONTAINER_PADDING + maxCol * (layout.SERVICE_WIDTH + spacing);
+        containerWidth =
+          maxServiceX + layout.SERVICE_WIDTH + layout.CONTAINER_PADDING;
       } else {
-        row = Math.floor(index / 3);
-        col = index % 3;
-        serviceWidth = 240;
-        containerPadding = 40;
-        headerHeight = 80;
-        serviceHeight = 160;
-        containerWidth = Math.min(windowSize.width - 200, 1200);
-        colsPerRow = 3;
+        containerWidth = Math.min(
+          windowSize.width - LAYOUT_CONSTANTS.DESKTOP.VIEWPORT_MARGIN,
+          LAYOUT_CONSTANTS.DESKTOP.MAX_CONTAINER_WIDTH
+        );
       }
 
       // Calculate consistent spacing
-      const availableWidth = containerWidth - 2 * containerPadding;
-      const totalServiceWidth = colsPerRow * serviceWidth;
+      const availableWidth = containerWidth - 2 * layout.CONTAINER_PADDING;
+      const totalServiceWidth = layout.COLS_PER_ROW * layout.SERVICE_WIDTH;
       const remainingSpace = availableWidth - totalServiceWidth;
 
-      const spacingBetweenServices = isMobile
-        ? Math.max(40, colsPerRow > 1 ? remainingSpace / (colsPerRow - 1) : 0) // Minimum 40px spacing on mobile
-        : isTablet
-        ? Math.max(80, colsPerRow > 1 ? remainingSpace / (colsPerRow - 1) : 0) // Minimum 80px spacing on tablet
-        : colsPerRow > 1
-        ? remainingSpace / (colsPerRow - 1)
+      const spacingBetweenServices = mobile
+        ? Math.max(
+            layout.SPACING_BETWEEN_SERVICES,
+            layout.COLS_PER_ROW > 1
+              ? remainingSpace / (layout.COLS_PER_ROW - 1)
+              : 0
+          )
+        : tablet
+        ? Math.max(
+            layout.SPACING_BETWEEN_SERVICES,
+            layout.COLS_PER_ROW > 1
+              ? remainingSpace / (layout.COLS_PER_ROW - 1)
+              : 0
+          )
+        : layout.COLS_PER_ROW > 1
+        ? remainingSpace / (layout.COLS_PER_ROW - 1)
         : 0;
 
       // Calculate position with consistent margins
-      // For mobile, center the service horizontally within the full-width container
-      const x = isMobile
-        ? containerPadding + col * (serviceWidth + spacingBetweenServices) // Two columns on mobile
-        : containerPadding + col * (serviceWidth + spacingBetweenServices);
-
+      const x =
+        layout.CONTAINER_PADDING +
+        col * (layout.SERVICE_WIDTH + spacingBetweenServices);
       const y =
-        containerPadding +
-        headerHeight +
-        row * (serviceHeight + (isMobile ? 20 : isTablet ? 30 : 40));
+        layout.CONTAINER_PADDING +
+        layout.HEADER_HEIGHT +
+        row * (layout.SERVICE_HEIGHT + layout.SPACING_BETWEEN_ROWS);
 
       flowNodes.push({
         id: service.id,
-        type: 'service',
+        type: NODE_TYPES.SERVICE,
         position: { x, y },
         data: { ...service },
         parentNode: service.parent,
@@ -390,60 +374,59 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
     });
 
     stagingServicesList.forEach((service, index: number) => {
-      let containerPadding: number,
-        headerHeight: number,
-        serviceWidth: number,
-        containerWidth: number;
+      const layout = getLayoutConstants(windowSize.width);
 
-      if (isMobile) {
-        containerPadding = 20;
-        headerHeight = 60;
-        serviceWidth = 180; // Fixed width for mobile services
-        containerWidth = 2 * serviceWidth + 40 + 40; // Two services + 40px spacing + 40px padding
-      } else if (isTablet) {
-        containerPadding = 30;
-        headerHeight = 70;
-        serviceWidth = 200;
-        containerWidth = 2 * serviceWidth + 40 + 40; // Two services + 40px spacing + 40px padding
+      let containerWidth: number;
+
+      if (mobile) {
+        containerWidth =
+          layout.CONTAINER_WIDTH_MULTIPLIER * layout.SERVICE_WIDTH +
+          layout.CONTAINER_WIDTH_SPACING +
+          layout.CONTAINER_WIDTH_PADDING;
+      } else if (tablet) {
+        containerWidth =
+          layout.CONTAINER_WIDTH_MULTIPLIER * layout.SERVICE_WIDTH +
+          layout.CONTAINER_WIDTH_SPACING +
+          layout.CONTAINER_WIDTH_PADDING;
       } else {
-        containerPadding = 40;
-        headerHeight = 80;
-        serviceWidth = 240;
-        containerWidth = Math.min(windowSize.width - 200, 1200);
+        containerWidth = Math.min(
+          windowSize.width - LAYOUT_CONSTANTS.DESKTOP.VIEWPORT_MARGIN,
+          LAYOUT_CONSTANTS.DESKTOP.MAX_CONTAINER_WIDTH
+        );
       }
 
       // Calculate consistent spacing for staging services (single row)
-      const availableWidth = containerWidth - 2 * containerPadding;
-      const totalServiceWidth = stagingServicesList.length * serviceWidth;
+      const availableWidth = containerWidth - 2 * layout.CONTAINER_PADDING;
+      const totalServiceWidth =
+        stagingServicesList.length * layout.SERVICE_WIDTH;
       const remainingSpace = availableWidth - totalServiceWidth;
-      const spacingBetweenServices = isMobile
+      const spacingBetweenServices = mobile
         ? Math.max(
-            40,
+            layout.SPACING_BETWEEN_SERVICES,
             stagingServicesList.length > 1
               ? remainingSpace / (stagingServicesList.length - 1)
               : 0
-          ) // Minimum 40px spacing on mobile
-        : isTablet
+          )
+        : tablet
         ? Math.max(
-            80,
+            layout.SPACING_BETWEEN_SERVICES,
             stagingServicesList.length > 1
               ? remainingSpace / (stagingServicesList.length - 1)
               : 0
-          ) // Minimum 80px spacing on tablet
+          )
         : stagingServicesList.length > 1
         ? remainingSpace / (stagingServicesList.length - 1)
         : 0;
 
       // Calculate position with consistent margins
-      // For mobile, center the service horizontally within the full-width container
-      const x = isMobile
-        ? containerPadding + index * (serviceWidth + spacingBetweenServices) // Two columns on mobile
-        : containerPadding + index * (serviceWidth + spacingBetweenServices);
-      const y = containerPadding + headerHeight;
+      const x =
+        layout.CONTAINER_PADDING +
+        index * (layout.SERVICE_WIDTH + spacingBetweenServices);
+      const y = layout.CONTAINER_PADDING + layout.HEADER_HEIGHT;
 
       flowNodes.push({
         id: service.id,
-        type: 'service',
+        type: NODE_TYPES.SERVICE,
         position: { x, y },
         data: { ...service },
         parentNode: service.parent,
@@ -459,25 +442,25 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
       target: conn.target,
       type: 'custom',
       data: { ...conn },
-      animated: conn.status === 'HEALTHY',
+      animated: conn.status === SERVICE_STATUS.HEALTHY,
       style: {
         stroke:
-          conn.status === 'HEALTHY'
-            ? '#10b981'
-            : conn.status === 'DEGRADED'
-            ? '#f59e0b'
-            : '#ef4444',
-        strokeWidth: 4,
-        strokeOpacity: 0.8,
+          conn.status === SERVICE_STATUS.HEALTHY
+            ? COLOR_CONSTANTS.STATUS.HEALTHY
+            : conn.status === SERVICE_STATUS.DEGRADED
+            ? COLOR_CONSTANTS.STATUS.DEGRADED
+            : COLOR_CONSTANTS.STATUS.OFFLINE,
+        strokeWidth: LAYOUT_CONSTANTS.REACT_FLOW.EDGE_STROKE_WIDTH,
+        strokeOpacity: LAYOUT_CONSTANTS.REACT_FLOW.EDGE_STROKE_OPACITY,
       },
       markerEnd: {
         type: MarkerType.ArrowClosed,
         color:
-          conn.status === 'HEALTHY'
-            ? '#10b981'
-            : conn.status === 'DEGRADED'
-            ? '#f59e0b'
-            : '#ef4444',
+          conn.status === SERVICE_STATUS.HEALTHY
+            ? COLOR_CONSTANTS.STATUS.HEALTHY
+            : conn.status === SERVICE_STATUS.DEGRADED
+            ? COLOR_CONSTANTS.STATUS.DEGRADED
+            : COLOR_CONSTANTS.STATUS.OFFLINE,
       },
     }));
 
@@ -485,78 +468,81 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
     setEdges(flowEdges);
   }, [setNodes, setEdges, windowSize, calculateContainerHeight]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (selectedItem && selectedItem.type === 'connection') {
-        setRealTimeMetrics({ [selectedItem.data.id]: generateMetrics() });
-      }
-    }, 2500);
+  const clearSelection = () => {
+    setNodes((nds) => nds.map((n) => ({ ...n, selected: false })));
+    setEdges((eds) => eds.map((e) => ({ ...e, selected: false })));
+  };
 
-    return () => clearInterval(interval);
-  }, [selectedItem]);
-
+  // Update nodes with status changes
   useEffect(() => {
-    const interval = setInterval(() => {
+    if (Object.keys(statusData.serviceStatuses).length > 0) {
       setNodes((prevNodes) =>
         prevNodes.map((node) => {
-          if (node.type === 'service' && Math.random() < 0.1) {
-            const newStatus = getRandomStatus();
+          if (
+            node.type === NODE_TYPES.SERVICE &&
+            statusData.serviceStatuses[node.id]
+          ) {
             return {
               ...node,
-              data: { ...node.data, status: newStatus },
+              data: {
+                ...node.data,
+                status: statusData.serviceStatuses[node.id],
+              },
             };
           }
           return node;
         })
       );
+    }
+  }, [statusData.serviceStatuses, setNodes]);
 
+  // Update edges with status changes
+  useEffect(() => {
+    if (Object.keys(statusData.connectionStatuses).length > 0) {
       setEdges((prevEdges) =>
         prevEdges.map((edge) => {
-          if (Math.random() < 0.05) {
-            const newStatus = getRandomStatus();
+          if (statusData.connectionStatuses[edge.id]) {
+            const newStatus = statusData.connectionStatuses[edge.id];
             return {
               ...edge,
               data: { ...edge.data, status: newStatus },
-              animated: newStatus === 'HEALTHY',
+              animated: newStatus === SERVICE_STATUS.HEALTHY,
               style: {
                 stroke:
-                  newStatus === 'HEALTHY'
-                    ? '#10b981'
-                    : newStatus === 'DEGRADED'
-                    ? '#f59e0b'
-                    : '#ef4444',
-                strokeWidth: 4,
-                strokeOpacity: 0.8,
+                  newStatus === SERVICE_STATUS.HEALTHY
+                    ? COLOR_CONSTANTS.STATUS.HEALTHY
+                    : newStatus === SERVICE_STATUS.DEGRADED
+                    ? COLOR_CONSTANTS.STATUS.DEGRADED
+                    : COLOR_CONSTANTS.STATUS.OFFLINE,
+                strokeWidth: LAYOUT_CONSTANTS.REACT_FLOW.EDGE_STROKE_WIDTH,
+                strokeOpacity: LAYOUT_CONSTANTS.REACT_FLOW.EDGE_STROKE_OPACITY,
               },
               markerEnd: {
                 type: MarkerType.ArrowClosed,
                 color:
-                  newStatus === 'HEALTHY'
-                    ? '#10b981'
-                    : newStatus === 'DEGRADED'
-                    ? '#f59e0b'
-                    : '#ef4444',
+                  newStatus === SERVICE_STATUS.HEALTHY
+                    ? COLOR_CONSTANTS.STATUS.HEALTHY
+                    : newStatus === SERVICE_STATUS.DEGRADED
+                    ? COLOR_CONSTANTS.STATUS.DEGRADED
+                    : COLOR_CONSTANTS.STATUS.OFFLINE,
               },
-            } as any;
+            } as Edge;
           }
           return edge;
         })
       );
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [setNodes, setEdges]);
+    }
+  }, [statusData.connectionStatuses, setEdges]);
 
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
-    if (node.type === 'service') {
-      setSelectedItem({ type: 'service', data: node.data });
+    if (node.type === NODE_TYPES.SERVICE) {
+      setSelectedItem({ type: SELECTED_ITEM_TYPES.SERVICE, data: node.data });
       setIsPanelOpen(true);
     }
   }, []);
 
   const onEdgeClick = useCallback((_event: React.MouseEvent, edge: Edge) => {
-    setSelectedItem({ type: 'connection', data: edge.data });
-    setRealTimeMetrics({ [edge.data.id]: generateMetrics() });
+    setSelectedItem({ type: SELECTED_ITEM_TYPES.CONNECTION, data: edge.data });
     setIsPanelOpen(true);
   }, []);
 
@@ -567,57 +553,42 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
 
   const onNodeDrag = useCallback(
     (_event: React.MouseEvent, node: Node) => {
-      if (node.type === 'service' && node.parentNode) {
+      if (node.type === NODE_TYPES.SERVICE && node.parentNode) {
         const parentNode = nodes.find((n) => n.id === node.parentNode);
         if (parentNode) {
-          const isMobile = windowSize.width < 768;
-          const isTablet = windowSize.width >= 768 && windowSize.width < 1024;
-
-          let containerPadding: number,
-            headerHeight: number,
-            serviceWidth: number,
-            serviceHeight: number,
-            containerWidth: number,
-            containerHeight: number;
+          const mobile = isMobile(windowSize.width);
+          const tablet = isTablet(windowSize.width);
+          const layout = getLayoutConstants(windowSize.width);
 
           // Get service count for the parent environment
           const parentServices = nodes.filter(
-            (n) => n.type === 'service' && n.parentNode === node.parentNode
+            (n) =>
+              n.type === NODE_TYPES.SERVICE && n.parentNode === node.parentNode
           );
           const dynamicHeight = calculateContainerHeight(
             parentServices.length,
-            isMobile,
-            isTablet
+            windowSize.width
           );
 
-          if (isMobile) {
-            containerPadding = 20;
-            headerHeight = 60;
-            serviceWidth = windowSize.width - 40; // Full width minus padding
-            serviceHeight = 140;
+          let containerWidth: number;
+
+          if (mobile) {
             containerWidth = windowSize.width; // Full viewport width
-            containerHeight = dynamicHeight;
-          } else if (isTablet) {
-            containerPadding = 30;
-            headerHeight = 70;
-            serviceWidth = 200;
-            serviceHeight = 150;
+          } else if (tablet) {
             containerWidth = Math.min(windowSize.width - 100, 800);
-            containerHeight = dynamicHeight;
           } else {
-            containerPadding = 40;
-            headerHeight = 80;
-            serviceWidth = 240;
-            serviceHeight = 160;
-            containerWidth = Math.min(windowSize.width - 200, 1200);
-            containerHeight = dynamicHeight;
+            containerWidth = Math.min(
+              windowSize.width - LAYOUT_CONSTANTS.DESKTOP.VIEWPORT_MARGIN,
+              LAYOUT_CONSTANTS.DESKTOP.MAX_CONTAINER_WIDTH
+            );
           }
 
-          const minX = containerPadding;
-          const minY = containerPadding + headerHeight;
-          const maxX = containerWidth - serviceWidth - containerPadding;
+          const minX = layout.CONTAINER_PADDING;
+          const minY = layout.CONTAINER_PADDING + layout.HEADER_HEIGHT;
+          const maxX =
+            containerWidth - layout.SERVICE_WIDTH - layout.CONTAINER_PADDING;
           // Allow bottom row to reach its intended position by using a more generous maxY
-          const maxY = containerHeight - serviceHeight;
+          const maxY = dynamicHeight - layout.SERVICE_HEIGHT;
 
           if (node.position.x < minX) node.position.x = minX;
           if (node.position.y < minY) node.position.y = minY;
@@ -630,15 +601,20 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
   );
 
   const dashboardStats = useMemo(() => {
-    const serviceNodes = nodes.filter((n) => n.type === 'service');
+    const serviceNodes = nodes.filter((n) => n.type === NODE_TYPES.SERVICE);
     const healthy = serviceNodes.filter(
-      (n) => n.data && 'status' in n.data && n.data.status === 'HEALTHY'
+      (n) =>
+        n.data && 'status' in n.data && n.data.status === SERVICE_STATUS.HEALTHY
     ).length;
     const degraded = serviceNodes.filter(
-      (n) => n.data && 'status' in n.data && n.data.status === 'DEGRADED'
+      (n) =>
+        n.data &&
+        'status' in n.data &&
+        n.data.status === SERVICE_STATUS.DEGRADED
     ).length;
     const offline = serviceNodes.filter(
-      (n) => n.data && 'status' in n.data && n.data.status === 'OFFLINE'
+      (n) =>
+        n.data && 'status' in n.data && n.data.status === SERVICE_STATUS.OFFLINE
     ).length;
 
     return { total: serviceNodes.length, healthy, degraded, offline };
@@ -666,73 +642,14 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
       <div className={`min-h-screen ${isDarkMode ? 'dark' : ''}`}>
         <div className="h-screen flex flex-col bg-background text-foreground">
           {/* Header */}
-          <header
-            className={`border-b bg-card/95 backdrop-blur-sm ${
-              windowSize.width < 768 ? 'p-2' : 'p-4 md:p-6'
-            }`}
-          >
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between max-w-full gap-4">
-              <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
-                <div className="flex items-center gap-3">
-                  <Activity className="h-6 w-6 md:h-8 md:w-8 text-primary" />
-                  <h1 className="text-lg md:text-2xl font-bold">
-                    Service Health Dashboard
-                  </h1>
-                </div>
-
-                <div className="flex flex-wrap gap-2 md:gap-3">
-                  <Card className="px-2 md:px-4 py-1 md:py-2 bg-green-500/10 border-green-500/20">
-                    <div className="flex items-center gap-1 md:gap-2">
-                      <div className="w-2 h-2 md:w-3 md:h-3 bg-green-500 rounded-full animate-pulse"></div>
-                      <span className="text-xs md:text-sm font-medium">
-                        {dashboardStats.healthy} Healthy
-                      </span>
-                    </div>
-                  </Card>
-                  <Card className="px-2 md:px-4 py-1 md:py-2 bg-amber-500/10 border-amber-500/20">
-                    <div className="flex items-center gap-1 md:gap-2">
-                      <div className="w-2 h-2 md:w-3 md:h-3 bg-amber-500 rounded-full animate-pulse"></div>
-                      <span className="text-xs md:text-sm font-medium">
-                        {dashboardStats.degraded} Degraded
-                      </span>
-                    </div>
-                  </Card>
-                  <Card className="px-2 md:px-4 py-1 md:py-2 bg-red-500/10 border-red-500/20">
-                    <div className="flex items-center gap-1 md:gap-2">
-                      <div className="w-2 h-2 md:w-3 md:h-3 bg-red-500 rounded-full animate-pulse"></div>
-                      <span className="text-xs md:text-sm font-medium">
-                        {dashboardStats.offline} Offline
-                      </span>
-                    </div>
-                  </Card>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 md:gap-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsDarkMode(!isDarkMode)}
-                  className="px-2 md:px-4 text-xs md:text-sm"
-                >
-                  {isDarkMode ? 'Light' : 'Dark'}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsPanelOpen(!isPanelOpen)}
-                  className="px-2 md:px-4 text-xs md:text-sm"
-                >
-                  {isPanelOpen ? (
-                    <PanelRightClose className="h-3 w-3 md:h-4 md:w-4 md:mr-2" />
-                  ) : (
-                    <PanelRight className="h-3 w-3 md:h-4 md:w-4 md:mr-2" />
-                  )}
-                  <span className="hidden md:inline">Panel</span>
-                </Button>
-              </div>
-            </div>
-          </header>
+          <DashboardHeader
+            windowSize={windowSize}
+            dashboardStats={dashboardStats}
+            isDarkMode={isDarkMode}
+            isPanelOpen={isPanelOpen}
+            onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+            onTogglePanel={() => setIsPanelOpen(!isPanelOpen)}
+          />
 
           {/* Main Content */}
           <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
@@ -759,35 +676,17 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
                 defaultViewport={{
                   x: 0,
                   y: 0,
-                  zoom: 0.8,
+                  zoom: LAYOUT_CONSTANTS.REACT_FLOW.DEFAULT_ZOOM,
                 }}
                 snapToGrid={false}
                 nodesDraggable={true}
                 nodesConnectable={false}
                 elementsSelectable={true}
               >
-                <Background gap={20} size={1} />
-                {/* <Controls
-                  className={`${
-                    isDarkMode
-                      ? 'bg-gray-800 border-gray-700 text-white'
-                      : 'bg-card border'
-                  } scale-75 sm:scale-90 md:scale-100`}
-                /> */}
-                {/* <MiniMap
-                  className={`${
-                    isDarkMode
-                      ? 'bg-gray-800 border-gray-700'
-                      : 'bg-card border'
-                  } hidden sm:block`}
-                  nodeStrokeWidth={3}
-                  nodeColor={(node: Node) => {
-                    if (node.data?.status === 'HEALTHY') return '#10b981';
-                    if (node.data?.status === 'DEGRADED') return '#f59e0b';
-                    if (node.data?.status === 'OFFLINE') return '#ef4444';
-                    return '#6b7280';
-                  }}
-                /> */}
+                <Background
+                  gap={LAYOUT_CONSTANTS.REACT_FLOW.BACKGROUND_GAP}
+                  size={LAYOUT_CONSTANTS.REACT_FLOW.BACKGROUND_SIZE}
+                />
               </ReactFlow>
             </div>
 
@@ -795,16 +694,11 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
             {isPanelOpen && (
               <DetailsPanel
                 selectedItem={selectedItem}
-                realTimeMetrics={
-                  selectedItem
-                    ? realTimeMetrics[selectedItem.data.id] || {
-                        rps: 0,
-                        latency: 0,
-                        errorRate: 0,
-                      }
-                    : { rps: 0, latency: 0, errorRate: 0 }
-                }
-                onClose={() => setIsPanelOpen(false)}
+                onClose={() => {
+                  setIsPanelOpen(false);
+                  setSelectedItem(null);
+                  clearSelection();
+                }}
               />
             )}
           </div>

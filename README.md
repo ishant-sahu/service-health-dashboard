@@ -1,10 +1,10 @@
 # Service Health Dashboard
 
-A responsive, single-page application that provides a real-time visual map of microservices architecture, designed for DevOps Engineers and Site Reliability Engineers (SREs) to monitor service health and performance.
+A modern, responsive single-page application that provides a real-time visual map of microservices architecture, designed for DevOps Engineers and Site Reliability Engineers (SREs) to monitor service health and performance.
 
 ## 🎯 Project Overview
 
-This dashboard visualizes application services and their connections, allowing engineers to quickly identify performance bottlenecks, outages, and service dependencies. The application displays services grouped by environment (Production/Staging) with real-time health indicators and interactive details panels.
+This dashboard visualizes application services and their connections, allowing engineers to quickly identify performance bottlenecks, outages, and service dependencies. The application displays services grouped by environment (Production/Staging) with real-time health indicators, interactive details panels, and comprehensive metrics visualization.
 
 ## ✨ Features
 
@@ -15,6 +15,9 @@ This dashboard visualizes application services and their connections, allowing e
 - **Real-time Health Monitoring**: Visual indicators for service status (Healthy, Degraded, Offline)
 - **Interactive Details Panel**: Click on services or connections to view detailed information
 - **Real-time Metrics Simulation**: Live updates for RPS, latency, and error rates
+- **Responsive Design**: Optimized for desktop, tablet, and mobile devices
+- **Theme Support**: Light and dark mode toggle
+- **Centralized Configuration**: All constants and styling centralized for easy maintenance
 
 ### Visual Indicators
 
@@ -27,6 +30,9 @@ This dashboard visualizes application services and their connections, allowing e
 - **Hover Tooltips**: Quick status information on hover
 - **Click Selection**: Detailed information in the sidebar panel
 - **Real-time Updates**: Metrics refresh every 2-3 seconds for selected connections
+- **Chart Visualization**: Real-time charts for RPS, latency, and error rates
+- **Responsive Panel**: Details panel adapts to screen size
+- **Smooth Animations**: Hover effects and transitions for better UX
 
 ## 🛠️ Tech Stack
 
@@ -34,9 +40,12 @@ This dashboard visualizes application services and their connections, allowing e
 - **Build Tool**: Vite 7.1.7
 - **Styling**: Tailwind CSS with Radix UI components
 - **Visualization**: React Flow for service topology rendering
-- **State Management**: React hooks and context
+- **Charts**: Recharts for real-time metrics visualization
+- **State Management**: React hooks and custom services
 - **Icons**: Lucide React
-- **Charts**: D3.js for metrics visualization
+- **UI Components**: Comprehensive Radix UI component library
+- **Form Handling**: React Hook Form with Zod validation
+- **Theme**: Next Themes for dark/light mode support
 
 ## 📁 Project Structure
 
@@ -44,17 +53,32 @@ This dashboard visualizes application services and their connections, allowing e
 src/
 ├── components/
 │   ├── ui/                     # Reusable UI components (Radix UI)
+│   ├── charts/                 # Chart components
+│   │   ├── RealTimeChart.tsx   # Real-time metrics chart
+│   │   └── index.ts            # Chart exports
 │   ├── ServiceHealthDashboard.tsx  # Main dashboard component
 │   ├── ServiceNode.tsx         # Individual service node component
 │   ├── EnvironmentNode.tsx     # Environment grouping component
 │   ├── CustomEdge.tsx          # Connection line component
-│   └── DetailsPanel.tsx        # Sidebar details panel
+│   ├── DetailsPanel.tsx        # Sidebar details panel
+│   └── DashboardHeader.tsx     # Dashboard header component
+├── constants/
+│   └── dashboard.ts            # Centralized constants and configuration
 ├── data/
 │   └── mock.ts                 # Mock service data
 ├── hooks/
-│   └── use-toast.ts           # Toast notification hook
+│   ├── useConnectionMetrics.ts # Connection metrics hook
+│   ├── useStatusUpdates.ts     # Status update hook
+│   └── useToast.ts             # Toast notification hook
+├── services/
+│   ├── CacheService.ts         # Caching service
+│   ├── MetricsService.ts       # Metrics data service
+│   ├── StatusService.ts        # Status update service
+│   └── StreamService.ts        # Real-time streaming service
+├── utils/
+│   └── responsive.ts           # Responsive utility functions
 ├── lib/
-│   └── utils.ts               # Utility functions
+│   └── utils.ts                # General utility functions
 ├── App.tsx                     # Main application component
 └── main.tsx                    # Application entry point
 ```
@@ -150,9 +174,11 @@ VITE_REFRESH_INTERVAL=3000
 
 ### Customization
 
-- Service status colors can be modified in `src/index.css`
-- Layout breakpoints are defined in `tailwind.config.js`
-- Mock data can be updated in `src/data/mock.ts`
+- **Constants**: All configuration constants are centralized in `src/constants/dashboard.ts`
+- **Colors**: Service status colors, themes, and UI colors can be modified in constants
+- **Layout**: Responsive breakpoints and dimensions are defined in constants
+- **Mock Data**: Service data can be updated in `src/data/mock.ts`
+- **Styling**: Tailwind CSS classes are managed through constants for consistency
 
 ## 📈 Real-time Metrics
 
@@ -161,6 +187,28 @@ For selected connections, the dashboard simulates real-time metrics:
 - **Requests Per Second (RPS)**: 300-1000 range
 - **Average Latency**: 50-250ms range
 - **Error Rate**: 0.00% - 5.00% range
+
+## 🏗️ Architecture & Design Patterns
+
+### Component Architecture
+
+- **Modular Design**: Each component is self-contained with clear responsibilities
+- **Type Safety**: Full TypeScript implementation with strict type checking
+- **Constants-Driven**: All hardcoded values replaced with centralized constants
+- **Responsive First**: Mobile-first design with progressive enhancement
+
+### State Management
+
+- **Custom Hooks**: Specialized hooks for metrics, status updates, and UI state
+- **Service Layer**: Dedicated services for caching, metrics, and streaming
+- **Real-time Updates**: Efficient data streaming with connection-specific metrics
+
+### Code Quality
+
+- **ESLint Configuration**: Comprehensive linting rules for code quality
+- **Consistent Styling**: Centralized color and layout constants
+- **Accessibility**: WCAG compliant with proper ARIA labels and keyboard navigation
+- **Performance**: Optimized rendering with React Flow and efficient re-renders
 
 ## 🤝 Contributing
 
