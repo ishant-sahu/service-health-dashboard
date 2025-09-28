@@ -8,6 +8,8 @@ const EDGE_CONSTANTS = {
   INTERACTION_STROKE_WIDTH: 20,
   UNKNOWN_LABEL: 'Unknown',
   CONNECTION_LABEL: 'Connection',
+  SELECTION_STROKE_WIDTH: 4,
+  SELECTION_OPACITY: 1,
 } as const;
 
 type CustomEdgeProps = {
@@ -25,6 +27,7 @@ type CustomEdgeProps = {
     status: (typeof SERVICE_STATUS)[keyof typeof SERVICE_STATUS];
   };
   markerEnd?: string;
+  selected?: boolean;
 };
 
 const CustomEdge = ({
@@ -38,6 +41,7 @@ const CustomEdge = ({
   style = {},
   data,
   markerEnd,
+  selected = false,
 }: CustomEdgeProps): React.JSX.Element => {
   const [edgePath] = getBezierPath({
     sourceX,
@@ -52,6 +56,21 @@ const CustomEdge = ({
     <Tooltip>
       <TooltipTrigger asChild>
         <g>
+          {/* Selection overlay - appears when edge is selected */}
+          {selected && (
+            <path
+              d={edgePath}
+              fill="none"
+              stroke="hsl(var(--primary))"
+              strokeWidth={EDGE_CONSTANTS.SELECTION_STROKE_WIDTH}
+              strokeOpacity={EDGE_CONSTANTS.SELECTION_OPACITY}
+              className="react-flow__edge-selection"
+              style={{
+                filter: 'drop-shadow(0 0 6px hsl(var(--primary)))',
+              }}
+            />
+          )}
+          {/* Main edge path */}
           <path
             id={id}
             style={style}
@@ -59,6 +78,7 @@ const CustomEdge = ({
             d={edgePath}
             markerEnd={markerEnd}
           />
+          {/* Interaction area for clicking */}
           <path
             d={edgePath}
             fill="none"

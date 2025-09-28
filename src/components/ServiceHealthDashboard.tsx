@@ -682,27 +682,6 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
                   gap={LAYOUT_CONSTANTS.REACT_FLOW.BACKGROUND_GAP}
                   size={LAYOUT_CONSTANTS.REACT_FLOW.BACKGROUND_SIZE}
                 />
-                {/* <Controls
-                  className={`${
-                    isDarkMode
-                      ? 'bg-gray-800 border-gray-700 text-white'
-                      : 'bg-card border'
-                  } scale-75 sm:scale-90 md:scale-100`}
-                /> */}
-                {/* <MiniMap
-                  className={`${
-                    isDarkMode
-                      ? 'bg-gray-800 border-gray-700'
-                      : 'bg-card border'
-                  } hidden sm:block`}
-                  nodeStrokeWidth={3}
-                  nodeColor={(node: Node) => {
-                    if (node.data?.status === 'HEALTHY') return '#10b981';
-                    if (node.data?.status === 'DEGRADED') return '#f59e0b';
-                    if (node.data?.status === 'OFFLINE') return '#ef4444';
-                    return '#6b7280';
-                  }}
-                /> */}
               </ReactFlow>
             </div>
 
@@ -710,7 +689,10 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
             {isPanelOpen && (
               <DetailsPanel
                 selectedItem={selectedItem}
-                onClose={() => setIsPanelOpen(false)}
+                onClose={() => {
+                  setIsPanelOpen(false);
+                  setSelectedItem(null);
+                }}
               />
             )}
           </div>
