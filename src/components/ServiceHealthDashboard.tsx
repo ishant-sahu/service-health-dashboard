@@ -29,6 +29,7 @@ import {
   ENVIRONMENT_IDS,
   SELECTED_ITEM_TYPES,
 } from '../constants/dashboard';
+import { isMobile, isTablet, getLayoutConstants } from '../utils/responsive';
 
 const nodeTypes = {
   [NODE_TYPES.SERVICE]: ServiceNode,
@@ -73,12 +74,8 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
 
   // Function to calculate dynamic container height based on services
   const calculateContainerHeight = useCallback(
-    (serviceCount: number, isMobile: boolean, isTablet: boolean): number => {
-      const layout = isMobile
-        ? LAYOUT_CONSTANTS.MOBILE
-        : isTablet
-        ? LAYOUT_CONSTANTS.TABLET
-        : LAYOUT_CONSTANTS.DESKTOP;
+    (serviceCount: number, windowWidth: number): number => {
+      const layout = getLayoutConstants(windowWidth);
 
       // Calculate number of rows needed
       const rows = Math.ceil(serviceCount / layout.COLS_PER_ROW);
@@ -122,17 +119,9 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
             'parentNode' in node &&
             node.parentNode
           ) {
-            const isMobile =
-              windowSize.width < LAYOUT_CONSTANTS.BREAKPOINTS.MOBILE;
-            const isTablet =
-              windowSize.width >= LAYOUT_CONSTANTS.BREAKPOINTS.MOBILE &&
-              windowSize.width < LAYOUT_CONSTANTS.BREAKPOINTS.TABLET;
-
-            const layout = isMobile
-              ? LAYOUT_CONSTANTS.MOBILE
-              : isTablet
-              ? LAYOUT_CONSTANTS.TABLET
-              : LAYOUT_CONSTANTS.DESKTOP;
+            const mobile = isMobile(windowSize.width);
+            const tablet = isTablet(windowSize.width);
+            const layout = getLayoutConstants(windowSize.width);
 
             // Get service count for the parent environment
             const parentServices = nodes.filter(
@@ -143,13 +132,12 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
             );
             const dynamicHeight = calculateContainerHeight(
               parentServices.length,
-              isMobile,
-              isTablet
+              windowSize.width
             );
 
             let containerWidth: number;
 
-            if (isMobile) {
+            if (mobile) {
               // Calculate container width with generous spacing to prevent overflow
               const spacing = 80; // Increased spacing between services
               const maxCol = layout.COLS_PER_ROW - 1; // For 2 columns, max column index is 1
@@ -161,7 +149,7 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
                 layout.SERVICE_WIDTH +
                 layout.CONTAINER_PADDING +
                 50;
-            } else if (isTablet) {
+            } else if (tablet) {
               // Calculate container width with generous spacing to prevent overflow
               const spacing = 80; // Increased spacing between services
               const maxCol = layout.COLS_PER_ROW - 1; // For 2 columns, max column index is 1
@@ -229,10 +217,8 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
       (node) => node.type === NODE_TYPES.ENVIRONMENT
     );
 
-    const isMobile = windowSize.width < LAYOUT_CONSTANTS.BREAKPOINTS.MOBILE;
-    const isTablet =
-      windowSize.width >= LAYOUT_CONSTANTS.BREAKPOINTS.MOBILE &&
-      windowSize.width < LAYOUT_CONSTANTS.BREAKPOINTS.TABLET;
+    const mobile = isMobile(windowSize.width);
+    const tablet = isTablet(windowSize.width);
 
     // Calculate dynamic heights for each environment
     const prodServicesList = serviceNodes.filter(
@@ -244,17 +230,15 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
 
     const prodHeight = calculateContainerHeight(
       prodServicesList.length,
-      isMobile,
-      isTablet
+      windowSize.width
     );
     const stagingHeight = calculateContainerHeight(
       stagingServicesList.length,
-      isMobile,
-      isTablet
+      windowSize.width
     );
 
     let envPositions: Record<string, { x: number; y: number }>;
-    if (isMobile) {
+    if (mobile) {
       const centerX = LAYOUT_CONSTANTS.ENVIRONMENT_POSITIONS.MOBILE.CENTER_X;
       const topY = LAYOUT_CONSTANTS.ENVIRONMENT_POSITIONS.MOBILE.TOP_Y;
       envPositions = {
@@ -264,7 +248,7 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
           y: topY + prodHeight + LAYOUT_CONSTANTS.ENVIRONMENT_GAPS.MOBILE,
         },
       };
-    } else if (isTablet) {
+    } else if (tablet) {
       const containerWidth =
         LAYOUT_CONSTANTS.ENVIRONMENT_POSITIONS.TABLET.CONTAINER_WIDTH;
       const centerX = (windowSize.width - containerWidth) / 2;
@@ -303,8 +287,8 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
         data: {
           ...env,
           containerHeight: dynamicHeight,
-          isMobile,
-          isTablet,
+          isMobile: mobile,
+          isTablet: tablet,
           windowWidth: windowSize.width,
         },
         draggable: false,
@@ -312,23 +296,19 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
     });
 
     prodServicesList.forEach((service, index: number) => {
-      const layout = isMobile
-        ? LAYOUT_CONSTANTS.MOBILE
-        : isTablet
-        ? LAYOUT_CONSTANTS.TABLET
-        : LAYOUT_CONSTANTS.DESKTOP;
+      const layout = getLayoutConstants(windowSize.width);
 
       const row = Math.floor(index / layout.COLS_PER_ROW);
       const col = index % layout.COLS_PER_ROW;
 
       let containerWidth: number;
 
-      if (isMobile) {
+      if (mobile) {
         containerWidth =
           layout.CONTAINER_WIDTH_MULTIPLIER * layout.SERVICE_WIDTH +
           layout.CONTAINER_WIDTH_SPACING +
           layout.CONTAINER_WIDTH_PADDING;
-      } else if (isTablet) {
+      } else if (tablet) {
         // Calculate container width based on service count and spacing
         const spacing = 50; // Minimum spacing between services
         const maxCol = layout.COLS_PER_ROW - 1;
@@ -348,14 +328,14 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
       const totalServiceWidth = layout.COLS_PER_ROW * layout.SERVICE_WIDTH;
       const remainingSpace = availableWidth - totalServiceWidth;
 
-      const spacingBetweenServices = isMobile
+      const spacingBetweenServices = mobile
         ? Math.max(
             layout.SPACING_BETWEEN_SERVICES,
             layout.COLS_PER_ROW > 1
               ? remainingSpace / (layout.COLS_PER_ROW - 1)
               : 0
           )
-        : isTablet
+        : tablet
         ? Math.max(
             layout.SPACING_BETWEEN_SERVICES,
             layout.COLS_PER_ROW > 1
@@ -388,20 +368,16 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
     });
 
     stagingServicesList.forEach((service, index: number) => {
-      const layout = isMobile
-        ? LAYOUT_CONSTANTS.MOBILE
-        : isTablet
-        ? LAYOUT_CONSTANTS.TABLET
-        : LAYOUT_CONSTANTS.DESKTOP;
+      const layout = getLayoutConstants(windowSize.width);
 
       let containerWidth: number;
 
-      if (isMobile) {
+      if (mobile) {
         containerWidth =
           layout.CONTAINER_WIDTH_MULTIPLIER * layout.SERVICE_WIDTH +
           layout.CONTAINER_WIDTH_SPACING +
           layout.CONTAINER_WIDTH_PADDING;
-      } else if (isTablet) {
+      } else if (tablet) {
         containerWidth =
           layout.CONTAINER_WIDTH_MULTIPLIER * layout.SERVICE_WIDTH +
           layout.CONTAINER_WIDTH_SPACING +
@@ -418,14 +394,14 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
       const totalServiceWidth =
         stagingServicesList.length * layout.SERVICE_WIDTH;
       const remainingSpace = availableWidth - totalServiceWidth;
-      const spacingBetweenServices = isMobile
+      const spacingBetweenServices = mobile
         ? Math.max(
             layout.SPACING_BETWEEN_SERVICES,
             stagingServicesList.length > 1
               ? remainingSpace / (stagingServicesList.length - 1)
               : 0
           )
-        : isTablet
+        : tablet
         ? Math.max(
             layout.SPACING_BETWEEN_SERVICES,
             stagingServicesList.length > 1
@@ -579,17 +555,9 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
       if (node.type === NODE_TYPES.SERVICE && node.parentNode) {
         const parentNode = nodes.find((n) => n.id === node.parentNode);
         if (parentNode) {
-          const isMobile =
-            windowSize.width < LAYOUT_CONSTANTS.BREAKPOINTS.MOBILE;
-          const isTablet =
-            windowSize.width >= LAYOUT_CONSTANTS.BREAKPOINTS.MOBILE &&
-            windowSize.width < LAYOUT_CONSTANTS.BREAKPOINTS.TABLET;
-
-          const layout = isMobile
-            ? LAYOUT_CONSTANTS.MOBILE
-            : isTablet
-            ? LAYOUT_CONSTANTS.TABLET
-            : LAYOUT_CONSTANTS.DESKTOP;
+          const mobile = isMobile(windowSize.width);
+          const tablet = isTablet(windowSize.width);
+          const layout = getLayoutConstants(windowSize.width);
 
           // Get service count for the parent environment
           const parentServices = nodes.filter(
@@ -598,15 +566,14 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
           );
           const dynamicHeight = calculateContainerHeight(
             parentServices.length,
-            isMobile,
-            isTablet
+            windowSize.width
           );
 
           let containerWidth: number;
 
-          if (isMobile) {
+          if (mobile) {
             containerWidth = windowSize.width; // Full viewport width
-          } else if (isTablet) {
+          } else if (tablet) {
             containerWidth = Math.min(windowSize.width - 100, 800);
           } else {
             containerWidth = Math.min(
