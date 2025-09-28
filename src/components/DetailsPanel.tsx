@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -13,6 +13,7 @@ import {
   ArrowRight,
   Zap,
 } from 'lucide-react';
+import { RealTimeChart, ChartDataPoint } from './charts';
 
 type ServiceItem = {
   type: 'service';
@@ -50,10 +51,44 @@ export default function DetailsPanel({
   onClose: () => void;
 }): React.JSX.Element {
   const [metrics, setMetrics] = useState(realTimeMetrics);
+  const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
+
+  // Add new data point to chart data
+  const addDataPoint = useCallback((newMetrics: typeof realTimeMetrics) => {
+    const now = Date.now();
+    const timeString = new Date(now).toLocaleTimeString();
+
+    const newDataPoint: ChartDataPoint = {
+      timestamp: now,
+      time: timeString,
+      rps: newMetrics.rps,
+      latency: newMetrics.latency,
+      errorRate: newMetrics.errorRate,
+    };
+
+    setChartData((prev) => {
+      const updated = [...prev, newDataPoint];
+      // Keep only last 20 data points for performance
+      return updated.slice(-20);
+    });
+  }, []);
+
+  // Clear chart data when selected item changes
+  useEffect(() => {
+    setChartData([]);
+  }, [selectedItem]);
 
   useEffect(() => {
     setMetrics(realTimeMetrics);
-  }, [realTimeMetrics]);
+    // Only add to chart if we have valid metrics (not the default zeros)
+    if (
+      realTimeMetrics.rps > 0 ||
+      realTimeMetrics.latency > 0 ||
+      realTimeMetrics.errorRate > 0
+    ) {
+      addDataPoint(realTimeMetrics);
+    }
+  }, [realTimeMetrics, addDataPoint]);
 
   if (!selectedItem) {
     return (
@@ -223,46 +258,75 @@ export default function DetailsPanel({
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
               </div>
 
-              <div className="space-y-4">
-                <Card className="p-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-blue-500" />
-                      <span className="text-sm font-medium">Requests/sec</span>
-                    </div>
-                    <span className="text-lg font-bold text-blue-500">
-                      {metrics.rps || 0}
-                    </span>
+              {/* Current Metrics Cards */}
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                <Card className="p-2 text-center">
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    <TrendingUp className="h-3 w-3 text-blue-500" />
+                    <span className="text-xs font-medium">RPS</span>
                   </div>
+                  <span className="text-lg font-bold text-blue-500">
+                    {metrics.rps || 0}
+                  </span>
                 </Card>
 
-                <Card className="p-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-green-500" />
-                      <span className="text-sm font-medium">Avg Latency</span>
-                    </div>
-                    <span className="text-lg font-bold text-green-500">
-                      {metrics.latency || 0}ms
-                    </span>
+                <Card className="p-2 text-center">
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    <Clock className="h-3 w-3 text-green-500" />
+                    <span className="text-xs font-medium">Latency</span>
                   </div>
+                  <span className="text-lg font-bold text-green-500">
+                    {metrics.latency || 0}ms
+                  </span>
                 </Card>
 
-                <Card className="p-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4 text-amber-500" />
-                      <span className="text-sm font-medium">Error Rate</span>
-                    </div>
-                    <span className="text-lg font-bold text-amber-500">
-                      {metrics.errorRate || 0}%
-                    </span>
+                <Card className="p-2 text-center">
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    <AlertTriangle className="h-3 w-3 text-amber-500" />
+                    <span className="text-xs font-medium">Errors</span>
                   </div>
+                  <span className="text-lg font-bold text-amber-500">
+                    {metrics.errorRate || 0}%
+                  </span>
                 </Card>
               </div>
 
+              {/* Real-time Charts */}
+              {chartData.length > 0 && (
+                <div className="space-y-4">
+                  <RealTimeChart
+                    data={chartData}
+                    dataKey="rps"
+                    color="#3b82f6"
+                    type="area"
+                    title="Requests per Second"
+                    height={150}
+                  />
+
+                  <RealTimeChart
+                    data={chartData}
+                    dataKey="latency"
+                    color="#10b981"
+                    type="line"
+                    title="Response Latency"
+                    height={150}
+                  />
+
+                  <RealTimeChart
+                    data={chartData}
+                    dataKey="errorRate"
+                    color="#f59e0b"
+                    type="area"
+                    title="Error Rate"
+                    height={150}
+                  />
+                </div>
+              )}
+
               <div className="mt-4 text-xs text-muted-foreground text-center">
-                Updates every 2-3 seconds
+                {chartData.length > 0
+                  ? `Showing last ${chartData.length} data points • Updates every 2-3 seconds`
+                  : 'Waiting for real-time data...'}
               </div>
             </div>
           </div>
