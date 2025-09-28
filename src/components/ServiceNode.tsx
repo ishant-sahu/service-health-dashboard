@@ -13,12 +13,14 @@ import {
   CheckCircle,
   XCircle,
 } from 'lucide-react';
+import { SERVICE_STATUS, COLOR_CONSTANTS } from '../constants/dashboard';
+import { isMobile } from '../utils/responsive';
 
 type ServiceData = {
   name: string;
   tech: string;
   version: string;
-  status: 'HEALTHY' | 'DEGRADED' | 'OFFLINE';
+  status: (typeof SERVICE_STATUS)[keyof typeof SERVICE_STATUS];
 };
 
 function getServiceIcon(tech?: string): React.JSX.Element {
@@ -40,27 +42,43 @@ function getServiceIcon(tech?: string): React.JSX.Element {
 
 function getStatusIcon(status: ServiceData['status']): React.JSX.Element {
   switch (status) {
-    case 'HEALTHY':
-      return <CheckCircle className="h-4 w-4 text-green-500" />;
-    case 'DEGRADED':
-      return <AlertCircle className="h-4 w-4 text-amber-500" />;
-    case 'OFFLINE':
-      return <XCircle className="h-4 w-4 text-red-500" />;
+    case SERVICE_STATUS.HEALTHY:
+      return (
+        <CheckCircle
+          className={`h-4 w-4 ${COLOR_CONSTANTS.STATUS_TEXT_COLORS.HEALTHY}`}
+        />
+      );
+    case SERVICE_STATUS.DEGRADED:
+      return (
+        <AlertCircle
+          className={`h-4 w-4 ${COLOR_CONSTANTS.STATUS_TEXT_COLORS.DEGRADED}`}
+        />
+      );
+    case SERVICE_STATUS.OFFLINE:
+      return (
+        <XCircle
+          className={`h-4 w-4 ${COLOR_CONSTANTS.STATUS_TEXT_COLORS.OFFLINE}`}
+        />
+      );
     default:
-      return <CheckCircle className="h-4 w-4 text-green-500" />;
+      return (
+        <CheckCircle
+          className={`h-4 w-4 ${COLOR_CONSTANTS.STATUS_TEXT_COLORS.HEALTHY}`}
+        />
+      );
   }
 }
 
 function getStatusColor(status: ServiceData['status']): string {
   switch (status) {
-    case 'HEALTHY':
-      return 'border-green-500 bg-green-500/10';
-    case 'DEGRADED':
-      return 'border-amber-500 bg-amber-500/10';
-    case 'OFFLINE':
-      return 'border-red-500 bg-red-500/10';
+    case SERVICE_STATUS.HEALTHY:
+      return `${COLOR_CONSTANTS.STATUS_BORDERS.HEALTHY} ${COLOR_CONSTANTS.STATUS_BACKGROUNDS.HEALTHY}`;
+    case SERVICE_STATUS.DEGRADED:
+      return `${COLOR_CONSTANTS.STATUS_BORDERS.DEGRADED} ${COLOR_CONSTANTS.STATUS_BACKGROUNDS.DEGRADED}`;
+    case SERVICE_STATUS.OFFLINE:
+      return `${COLOR_CONSTANTS.STATUS_BORDERS.OFFLINE} ${COLOR_CONSTANTS.STATUS_BACKGROUNDS.OFFLINE}`;
     default:
-      return 'border-green-500 bg-green-500/10';
+      return `${COLOR_CONSTANTS.STATUS_BORDERS.HEALTHY} ${COLOR_CONSTANTS.STATUS_BACKGROUNDS.HEALTHY}`;
   }
 }
 
@@ -71,7 +89,8 @@ export default function ServiceNode({
   data: ServiceData;
   selected?: boolean;
 }): React.JSX.Element {
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  const isMobileDevice =
+    typeof window !== 'undefined' && isMobile(window.innerWidth);
 
   return (
     <Tooltip>
@@ -79,7 +98,7 @@ export default function ServiceNode({
         <Card
           className={`
             ${
-              isMobile
+              isMobileDevice
                 ? 'min-w-[180px] w-[180px] p-4'
                 : 'min-w-[240px] w-[240px] p-5'
             } 
@@ -98,11 +117,13 @@ export default function ServiceNode({
           />
 
           <div
-            className={`flex items-start gap-2 ${isMobile ? 'mb-2' : 'mb-3'}`}
+            className={`flex items-start gap-2 ${
+              isMobileDevice ? 'mb-2' : 'mb-3'
+            }`}
           >
             <div
               className={`${
-                isMobile ? 'p-1.5' : 'p-2'
+                isMobileDevice ? 'p-1.5' : 'p-2'
               } rounded-lg bg-background/80 border`}
             >
               {getServiceIcon(data.tech)}
@@ -110,14 +131,14 @@ export default function ServiceNode({
             <div className="flex-1 min-w-0">
               <h3
                 className={`${
-                  isMobile ? 'text-xs' : 'text-sm'
+                  isMobileDevice ? 'text-xs' : 'text-sm'
                 } font-bold truncate mb-1`}
               >
                 {data.name}
               </h3>
               <p
                 className={`${
-                  isMobile ? 'text-xs' : 'text-xs'
+                  isMobileDevice ? 'text-xs' : 'text-xs'
                 } text-muted-foreground`}
               >
                 {data.tech}
@@ -128,21 +149,25 @@ export default function ServiceNode({
 
           <div
             className={`flex items-center justify-between gap-2 ${
-              isMobile ? 'mt-3' : 'mt-4'
+              isMobileDevice ? 'mt-3' : 'mt-4'
             }`}
           >
             <Badge
               variant="secondary"
               className={`${
-                isMobile ? 'text-xs px-1.5 py-0.5' : 'text-xs px-2 py-1'
+                isMobileDevice ? 'text-xs px-1.5 py-0.5' : 'text-xs px-2 py-1'
               }`}
             >
               v{data.version}
             </Badge>
             <Badge
-              variant={data.status === 'HEALTHY' ? 'default' : 'destructive'}
+              variant={
+                data.status === SERVICE_STATUS.HEALTHY
+                  ? 'default'
+                  : 'destructive'
+              }
               className={`${
-                isMobile ? 'text-xs px-1.5 py-0.5' : 'text-xs px-2 py-1'
+                isMobileDevice ? 'text-xs px-1.5 py-0.5' : 'text-xs px-2 py-1'
               } font-medium`}
             >
               {data.status}
@@ -165,11 +190,11 @@ export default function ServiceNode({
           <div className="flex items-center gap-1">
             <div
               className={`w-2 h-2 rounded-full ${
-                data.status === 'HEALTHY'
-                  ? 'bg-green-500'
-                  : data.status === 'DEGRADED'
-                  ? 'bg-amber-500'
-                  : 'bg-red-500'
+                data.status === SERVICE_STATUS.HEALTHY
+                  ? COLOR_CONSTANTS.STATUS_DOTS.HEALTHY
+                  : data.status === SERVICE_STATUS.DEGRADED
+                  ? COLOR_CONSTANTS.STATUS_DOTS.DEGRADED
+                  : COLOR_CONSTANTS.STATUS_DOTS.OFFLINE
               }`}
             />
             <span className="text-xs font-medium">{data.status}</span>

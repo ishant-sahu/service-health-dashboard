@@ -1,6 +1,14 @@
 import React from 'react';
 import { getBezierPath, Position } from 'reactflow';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { SERVICE_STATUS, COLOR_CONSTANTS } from '../constants/dashboard';
+
+// Edge-specific constants
+const EDGE_CONSTANTS = {
+  INTERACTION_STROKE_WIDTH: 20,
+  UNKNOWN_LABEL: 'Unknown',
+  CONNECTION_LABEL: 'Connection',
+} as const;
 
 type CustomEdgeProps = {
   id: string;
@@ -14,7 +22,7 @@ type CustomEdgeProps = {
   data?: {
     source: string;
     target: string;
-    status: 'HEALTHY' | 'DEGRADED' | 'OFFLINE';
+    status: (typeof SERVICE_STATUS)[keyof typeof SERVICE_STATUS];
   };
   markerEnd?: string;
 };
@@ -55,29 +63,30 @@ const CustomEdge = ({
             d={edgePath}
             fill="none"
             stroke="transparent"
-            strokeWidth={20}
+            strokeWidth={EDGE_CONSTANTS.INTERACTION_STROKE_WIDTH}
             className="react-flow__edge-interaction"
           />
         </g>
       </TooltipTrigger>
       <TooltipContent className="bg-card border text-foreground shadow-lg">
         <div className="space-y-1">
-          <div className="font-semibold">Connection</div>
+          <div className="font-semibold">{EDGE_CONSTANTS.CONNECTION_LABEL}</div>
           <div className="text-xs text-muted-foreground">
-            {data?.source || 'Unknown'} → {data?.target || 'Unknown'}
+            {data?.source || EDGE_CONSTANTS.UNKNOWN_LABEL} →{' '}
+            {data?.target || EDGE_CONSTANTS.UNKNOWN_LABEL}
           </div>
           <div className="flex items-center gap-1">
             <div
               className={`w-2 h-2 rounded-full ${
-                data?.status === 'HEALTHY'
-                  ? 'bg-green-500'
-                  : data?.status === 'DEGRADED'
-                  ? 'bg-amber-500'
-                  : 'bg-red-500'
+                data?.status === SERVICE_STATUS.HEALTHY
+                  ? COLOR_CONSTANTS.STATUS_DOTS.HEALTHY
+                  : data?.status === SERVICE_STATUS.DEGRADED
+                  ? COLOR_CONSTANTS.STATUS_DOTS.DEGRADED
+                  : COLOR_CONSTANTS.STATUS_DOTS.OFFLINE
               }`}
             />
             <span className="text-xs font-medium">
-              {data?.status || 'Unknown'}
+              {data?.status || EDGE_CONSTANTS.UNKNOWN_LABEL}
             </span>
           </div>
         </div>

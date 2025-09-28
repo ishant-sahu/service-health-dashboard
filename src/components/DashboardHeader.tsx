@@ -5,8 +5,9 @@ import { Card } from './ui/card';
 import {
   HEADER_CONSTANTS,
   COLOR_CONSTANTS,
-  SERVICE_STATUS,
+  DEVICE_TYPES,
 } from '../constants/dashboard';
+import { isMobile } from '../utils/responsive';
 
 interface DashboardStats {
   total: number;
@@ -35,170 +36,127 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   onToggleDarkMode,
   onTogglePanel,
 }) => {
-  const isMobile = windowSize.width < 768;
+  const isMobileDevice = isMobile(windowSize.width);
+  const deviceType = isMobileDevice
+    ? DEVICE_TYPES.MOBILE
+    : DEVICE_TYPES.DESKTOP;
 
   return (
     <header
-      className={`border-b bg-card/95 backdrop-blur-sm ${
-        isMobile
-          ? HEADER_CONSTANTS.PADDING.MOBILE
-          : HEADER_CONSTANTS.PADDING.DESKTOP
-      }`}
+      className={`${HEADER_CONSTANTS.LAYOUT.HEADER_CLASSES} ${HEADER_CONSTANTS.PADDING[deviceType]}`}
     >
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between max-w-full gap-4">
-        <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
-          <div className="flex items-center gap-3">
+      <div
+        className={`${HEADER_CONSTANTS.LAYOUT.FLEX_CONTAINER} ${HEADER_CONSTANTS.GAPS.XLARGE}`}
+      >
+        <div
+          className={`${HEADER_CONSTANTS.LAYOUT.TITLE_CONTAINER} ${HEADER_CONSTANTS.GAPS.XLARGE} ${HEADER_CONSTANTS.GAPS.XXLARGE}`}
+        >
+          <div className={`flex items-center ${HEADER_CONSTANTS.GAPS.LARGE}`}>
             <Activity
-              className={`${
-                isMobile
-                  ? HEADER_CONSTANTS.ICON_SIZES.MOBILE
-                  : HEADER_CONSTANTS.ICON_SIZES.DESKTOP
-              } text-primary`}
+              className={`${HEADER_CONSTANTS.ICON_SIZES[deviceType]} text-primary`}
             />
             <h1
-              className={`${
-                isMobile
-                  ? HEADER_CONSTANTS.TITLE_SIZES.MOBILE
-                  : HEADER_CONSTANTS.TITLE_SIZES.DESKTOP
-              } font-bold`}
+              className={`${HEADER_CONSTANTS.TITLE_SIZES[deviceType]} font-bold`}
             >
-              Service Health Dashboard
+              {HEADER_CONSTANTS.TEXTS.TITLE}
             </h1>
           </div>
 
-          <div className="flex flex-wrap gap-2 md:gap-3">
+          <div
+            className={`${HEADER_CONSTANTS.LAYOUT.STATS_CONTAINER} ${HEADER_CONSTANTS.RESPONSIVE_GAPS.MOBILE} ${HEADER_CONSTANTS.RESPONSIVE_GAPS.DESKTOP}`}
+          >
             <Card
-              className={`${
-                HEADER_CONSTANTS.STAT_CARD_PADDING[
-                  isMobile ? 'MOBILE' : 'DESKTOP'
-                ]
-              } ${COLOR_CONSTANTS.STATUS_BACKGROUNDS.HEALTHY} ${
-                COLOR_CONSTANTS.STATUS_BORDERS.HEALTHY
-              }`}
+              className={`${HEADER_CONSTANTS.STAT_CARD_PADDING[deviceType]} ${COLOR_CONSTANTS.STATUS_BACKGROUNDS.HEALTHY} ${COLOR_CONSTANTS.STATUS_BORDERS.HEALTHY}`}
             >
-              <div className="flex items-center gap-1 md:gap-2">
+              <div
+                className={`flex items-center ${HEADER_CONSTANTS.GAPS.SMALL} ${HEADER_CONSTANTS.GAPS.MEDIUM}`}
+              >
                 <div
-                  className={`${
-                    HEADER_CONSTANTS.STAT_DOT_SIZES[
-                      isMobile ? 'MOBILE' : 'DESKTOP'
-                    ]
-                  } ${
-                    COLOR_CONSTANTS.STATUS_DOTS.HEALTHY
-                  } rounded-full animate-pulse`}
+                  className={`${HEADER_CONSTANTS.STAT_DOT_SIZES[deviceType]} ${COLOR_CONSTANTS.STATUS_DOTS.HEALTHY} ${HEADER_CONSTANTS.LAYOUT.STAT_CARD_CLASSES}`}
                 ></div>
                 <span
-                  className={`${
-                    HEADER_CONSTANTS.STAT_TEXT_SIZES[
-                      isMobile ? 'MOBILE' : 'DESKTOP'
-                    ]
-                  } font-medium`}
+                  className={`${HEADER_CONSTANTS.STAT_TEXT_SIZES[deviceType]} font-medium`}
                 >
-                  {dashboardStats.healthy} Healthy
+                  {dashboardStats.healthy} {HEADER_CONSTANTS.TEXTS.HEALTHY}
                 </span>
               </div>
             </Card>
 
             <Card
-              className={`${
-                HEADER_CONSTANTS.STAT_CARD_PADDING[
-                  isMobile ? 'MOBILE' : 'DESKTOP'
-                ]
-              } ${COLOR_CONSTANTS.STATUS_BACKGROUNDS.DEGRADED} ${
-                COLOR_CONSTANTS.STATUS_BORDERS.DEGRADED
-              }`}
+              className={`${HEADER_CONSTANTS.STAT_CARD_PADDING[deviceType]} ${COLOR_CONSTANTS.STATUS_BACKGROUNDS.DEGRADED} ${COLOR_CONSTANTS.STATUS_BORDERS.DEGRADED}`}
             >
-              <div className="flex items-center gap-1 md:gap-2">
+              <div
+                className={`flex items-center ${HEADER_CONSTANTS.GAPS.SMALL} ${HEADER_CONSTANTS.GAPS.MEDIUM}`}
+              >
                 <div
-                  className={`${
-                    HEADER_CONSTANTS.STAT_DOT_SIZES[
-                      isMobile ? 'MOBILE' : 'DESKTOP'
-                    ]
-                  } ${
-                    COLOR_CONSTANTS.STATUS_DOTS.DEGRADED
-                  } rounded-full animate-pulse`}
+                  className={`${HEADER_CONSTANTS.STAT_DOT_SIZES[deviceType]} ${COLOR_CONSTANTS.STATUS_DOTS.DEGRADED} ${HEADER_CONSTANTS.LAYOUT.STAT_CARD_CLASSES}`}
                 ></div>
                 <span
-                  className={`${
-                    HEADER_CONSTANTS.STAT_TEXT_SIZES[
-                      isMobile ? 'MOBILE' : 'DESKTOP'
-                    ]
-                  } font-medium`}
+                  className={`${HEADER_CONSTANTS.STAT_TEXT_SIZES[deviceType]} font-medium`}
                 >
-                  {dashboardStats.degraded} Degraded
+                  {dashboardStats.degraded} {HEADER_CONSTANTS.TEXTS.DEGRADED}
                 </span>
               </div>
             </Card>
 
             <Card
-              className={`${
-                HEADER_CONSTANTS.STAT_CARD_PADDING[
-                  isMobile ? 'MOBILE' : 'DESKTOP'
-                ]
-              } ${COLOR_CONSTANTS.STATUS_BACKGROUNDS.OFFLINE} ${
-                COLOR_CONSTANTS.STATUS_BORDERS.OFFLINE
-              }`}
+              className={`${HEADER_CONSTANTS.STAT_CARD_PADDING[deviceType]} ${COLOR_CONSTANTS.STATUS_BACKGROUNDS.OFFLINE} ${COLOR_CONSTANTS.STATUS_BORDERS.OFFLINE}`}
             >
-              <div className="flex items-center gap-1 md:gap-2">
+              <div
+                className={`flex items-center ${HEADER_CONSTANTS.GAPS.SMALL} ${HEADER_CONSTANTS.GAPS.MEDIUM}`}
+              >
                 <div
-                  className={`${
-                    HEADER_CONSTANTS.STAT_DOT_SIZES[
-                      isMobile ? 'MOBILE' : 'DESKTOP'
-                    ]
-                  } ${
-                    COLOR_CONSTANTS.STATUS_DOTS.OFFLINE
-                  } rounded-full animate-pulse`}
+                  className={`${HEADER_CONSTANTS.STAT_DOT_SIZES[deviceType]} ${COLOR_CONSTANTS.STATUS_DOTS.OFFLINE} ${HEADER_CONSTANTS.LAYOUT.STAT_CARD_CLASSES}`}
                 ></div>
                 <span
-                  className={`${
-                    HEADER_CONSTANTS.STAT_TEXT_SIZES[
-                      isMobile ? 'MOBILE' : 'DESKTOP'
-                    ]
-                  } font-medium`}
+                  className={`${HEADER_CONSTANTS.STAT_TEXT_SIZES[deviceType]} font-medium`}
                 >
-                  {dashboardStats.offline} Offline
+                  {dashboardStats.offline} {HEADER_CONSTANTS.TEXTS.OFFLINE}
                 </span>
               </div>
             </Card>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 md:gap-3">
+        <div
+          className={`${HEADER_CONSTANTS.LAYOUT.BUTTONS_CONTAINER} ${HEADER_CONSTANTS.RESPONSIVE_GAPS.MOBILE} ${HEADER_CONSTANTS.RESPONSIVE_GAPS.DESKTOP}`}
+        >
           <Button
             variant="outline"
             size="sm"
             onClick={onToggleDarkMode}
-            className={`${
-              HEADER_CONSTANTS.BUTTON_SIZES[isMobile ? 'MOBILE' : 'DESKTOP']
-            }`}
+            className={`${HEADER_CONSTANTS.BUTTON_SIZES[deviceType]}`}
           >
-            {isDarkMode ? 'Light' : 'Dark'}
+            {isDarkMode
+              ? HEADER_CONSTANTS.TEXTS.LIGHT
+              : HEADER_CONSTANTS.TEXTS.DARK}
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={onTogglePanel}
-            className={`${
-              HEADER_CONSTANTS.BUTTON_SIZES[isMobile ? 'MOBILE' : 'DESKTOP']
-            }`}
+            className={`${HEADER_CONSTANTS.BUTTON_SIZES[deviceType]}`}
           >
             {isPanelOpen ? (
               <PanelRightClose
-                className={`${
-                  HEADER_CONSTANTS.ICON_SIZES_BUTTON[
-                    isMobile ? 'MOBILE' : 'DESKTOP'
-                  ]
-                } ${!isMobile ? 'md:mr-2' : ''}`}
+                className={`${HEADER_CONSTANTS.ICON_SIZES_BUTTON[deviceType]} ${
+                  !isMobileDevice
+                    ? HEADER_CONSTANTS.LAYOUT.BUTTON_ICON_SPACING
+                    : ''
+                }`}
               />
             ) : (
               <PanelRight
-                className={`${
-                  HEADER_CONSTANTS.ICON_SIZES_BUTTON[
-                    isMobile ? 'MOBILE' : 'DESKTOP'
-                  ]
-                } ${!isMobile ? 'md:mr-2' : ''}`}
+                className={`${HEADER_CONSTANTS.ICON_SIZES_BUTTON[deviceType]} ${
+                  !isMobileDevice
+                    ? HEADER_CONSTANTS.LAYOUT.BUTTON_ICON_SPACING
+                    : ''
+                }`}
               />
             )}
-            <span className="hidden md:inline">Panel</span>
+            <span className={HEADER_CONSTANTS.LAYOUT.HIDDEN_MOBILE}>
+              {HEADER_CONSTANTS.TEXTS.PANEL}
+            </span>
           </Button>
         </div>
       </div>

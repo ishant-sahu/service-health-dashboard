@@ -1,5 +1,6 @@
 import { SERVICE_STATUS } from '../constants/dashboard';
 import { getRandomStatus } from '../data/mock';
+import { MultiEventStreamService } from './StreamService';
 
 export interface ServiceStatusUpdate {
   serviceId: string;
@@ -29,109 +30,25 @@ export interface StreamEvent {
 
 export type StreamEventHandler = (event: StreamEvent) => void;
 
-class StatusService {
-  private config: StreamConfig;
-  private subscribers: Map<StreamEventType, Set<StreamEventHandler>> =
-    new Map();
-  private intervals: Map<string, NodeJS.Timeout> = new Map();
-  private isRunning: boolean = false;
+class StatusService extends MultiEventStreamService<
+  StreamEvent,
+  StreamEventType,
+  StreamConfig
+> {
   private serviceIds: string[] = [];
   private connectionIds: string[] = [];
 
   constructor(config: Partial<StreamConfig> = {}) {
-    this.config = {
+    super({
       statusUpdateInterval: 5000,
       statusChangeProbability: 0.1,
       connectionChangeProbability: 0.05,
       ...config,
-    };
+    });
 
     // Initialize event type sets
     this.subscribers.set('serviceStatus', new Set());
     this.subscribers.set('connectionStatus', new Set());
-  }
-
-  /**
-   * Start the data stream
-   */
-  start(): void {
-    if (this.isRunning) {
-      console.warn('StatusService is already running');
-      return;
-    }
-
-    this.isRunning = true;
-
-    // Only start status stream if there are subscribers
-    const serviceStatusSubscribers = this.subscribers.get('serviceStatus');
-    const connectionStatusSubscribers =
-      this.subscribers.get('connectionStatus');
-    if (
-      (serviceStatusSubscribers && serviceStatusSubscribers.size > 0) ||
-      (connectionStatusSubscribers && connectionStatusSubscribers.size > 0)
-    ) {
-      this.startStatusUpdateStream();
-    }
-  }
-
-  /**
-   * Stop the data stream
-   */
-  stop(): void {
-    if (!this.isRunning) {
-      console.warn('StatusService is not running');
-      return;
-    }
-
-    this.isRunning = false;
-    this.intervals.forEach((interval) => clearInterval(interval));
-    this.intervals.clear();
-  }
-
-  /**
-   * Subscribe to stream events
-   */
-  subscribe(
-    eventType: StreamEventType,
-    handler: StreamEventHandler
-  ): () => void {
-    const subscribers = this.subscribers.get(eventType);
-    if (!subscribers) {
-      throw new Error(`Unknown event type: ${eventType}`);
-    }
-
-    const wasEmpty = subscribers.size === 0;
-    subscribers.add(handler);
-
-    // Start the appropriate stream if this is the first subscriber
-    if (wasEmpty && this.isRunning) {
-      if (eventType === 'serviceStatus' || eventType === 'connectionStatus') {
-        this.startStatusUpdateStream();
-      }
-    }
-
-    // Return unsubscribe function
-    return () => {
-      subscribers.delete(handler);
-
-      // Stop the stream if no more subscribers
-      if (subscribers.size === 0 && this.isRunning) {
-        if (eventType === 'serviceStatus' || eventType === 'connectionStatus') {
-          // Only stop status stream if no service or connection subscribers
-          const serviceSubscribers =
-            this.subscribers.get('serviceStatus')?.size || 0;
-          const connectionSubscribers =
-            this.subscribers.get('connectionStatus')?.size || 0;
-          if (serviceSubscribers === 0 && connectionSubscribers === 0) {
-            const interval = this.intervals.get('statusUpdate');
-            if (interval) {
-              clearInterval(interval);
-              this.intervals.delete('statusUpdate');
-            }
-          }
-        }
-      }
-    };
   }
 
   /**
@@ -148,31 +65,40 @@ class StatusService {
     this.connectionIds = [...connectionIds];
   }
 
-  /**
-   * Update configuration
-   */
-  updateConfig(newConfig: Partial<StreamConfig>): void {
-    this.config = { ...this.config, ...newConfig };
-
-    // Restart streams if running
-    if (this.isRunning) {
-      this.stop();
-      this.start();
+  protected startStreams(): void {
+    // Only start status stream if there are subscribers
+    const serviceStatusSubscribers = this.subscribers.get('serviceStatus');
+    const connectionStatusSubscribers =
+      this.subscribers.get('connectionStatus');
+    if (
+      (serviceStatusSubscribers && serviceStatusSubscribers.size > 0) ||
+      (connectionStatusSubscribers && connectionStatusSubscribers.size > 0)
+    ) {
+      this.startStreamForEventType('serviceStatus');
     }
   }
 
-  /**
-   * Get current configuration
-   */
-  getConfig(): StreamConfig {
-    return { ...this.config };
+  protected startStreamForEventType(eventType: StreamEventType): void {
+    if (eventType === 'serviceStatus' || eventType === 'connectionStatus') {
+      this.startStatusUpdateStream();
+    }
   }
 
-  /**
-   * Check if the stream is running
-   */
-  isActive(): boolean {
-    return this.isRunning;
+  protected stopStreamForEventType(eventType: StreamEventType): void {
+    if (eventType === 'serviceStatus' || eventType === 'connectionStatus') {
+      // Only stop status stream if no service or connection subscribers
+      const serviceSubscribers =
+        this.subscribers.get('serviceStatus')?.size || 0;
+      const connectionSubscribers =
+        this.subscribers.get('connectionStatus')?.size || 0;
+      if (serviceSubscribers === 0 && connectionSubscribers === 0) {
+        const interval = this.intervals.get('statusUpdate');
+        if (interval) {
+          clearInterval(interval);
+          this.intervals.delete('statusUpdate');
+        }
+      }
+    }
   }
 
   private startStatusUpdateStream(): void {
@@ -218,22 +144,6 @@ class StatusService {
     }, this.config.statusUpdateInterval);
 
     this.intervals.set('statusUpdate', interval);
-  }
-
-  private emit(eventType: StreamEventType, event: StreamEvent): void {
-    const subscribers = this.subscribers.get(eventType);
-    if (subscribers) {
-      subscribers.forEach((handler) => {
-        try {
-          handler(event);
-        } catch (error) {
-          console.error(
-            `Error in stream event handler for ${eventType}:`,
-            error
-          );
-        }
-      });
-    }
   }
 }
 
