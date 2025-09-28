@@ -468,6 +468,11 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
     setEdges(flowEdges);
   }, [setNodes, setEdges, windowSize, calculateContainerHeight]);
 
+  const clearSelection = () => {
+    setNodes((nds) => nds.map((n) => ({ ...n, selected: false })));
+    setEdges((eds) => eds.map((e) => ({ ...e, selected: false })));
+  };
+
   // Update nodes with status changes
   useEffect(() => {
     if (Object.keys(statusData.serviceStatuses).length > 0) {
@@ -692,6 +697,7 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
                 onClose={() => {
                   setIsPanelOpen(false);
                   setSelectedItem(null);
+                  clearSelection();
                 }}
               />
             )}
