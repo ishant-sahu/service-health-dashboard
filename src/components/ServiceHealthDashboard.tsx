@@ -10,11 +10,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
-import {
-  mockServicesData,
-  generateMetrics,
-  getRandomStatus,
-} from '../data/mock';
+import { mockServicesData } from '../data/mock';
 import ServiceNode from './ServiceNode';
 import EnvironmentNode from './EnvironmentNode';
 import DetailsPanel from './DetailsPanel';
@@ -30,6 +26,7 @@ import {
   SELECTED_ITEM_TYPES,
 } from '../constants/dashboard';
 import { isMobile, isTablet, getLayoutConstants } from '../utils/responsive';
+import { useRealTimeData } from '../hooks/useRealTimeData';
 
 const nodeTypes = {
   [NODE_TYPES.SERVICE]: ServiceNode,
@@ -197,17 +194,27 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
 
   const [selectedItem, setSelectedItem] = useState<SelectedItem>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const [realTimeMetrics, setRealTimeMetrics] = useState<
-    Record<
-      string,
-      {
-        rps: number;
-        latency: number;
-        errorRate: number;
-      }
-    >
-  >({});
   const [isDarkMode, setIsDarkMode] = useState(true);
+
+  // Get service and connection IDs for real-time data
+  const serviceIds = nodes
+    .filter((n) => n.type === NODE_TYPES.SERVICE)
+    .map((n) => n.id);
+  const connectionIds = edges.map((e) => e.id);
+
+  // Use real-time data hook
+  const { data: realTimeData } = useRealTimeData({
+    serviceIds,
+    connectionIds,
+    config: {
+      metricsInterval: LAYOUT_CONSTANTS.INTERVALS.METRICS_UPDATE,
+      statusUpdateInterval: LAYOUT_CONSTANTS.INTERVALS.STATUS_UPDATE,
+      statusChangeProbability:
+        LAYOUT_CONSTANTS.INTERVALS.STATUS_CHANGE_PROBABILITY,
+      connectionChangeProbability:
+        LAYOUT_CONSTANTS.INTERVALS.EDGE_CHANGE_PROBABILITY,
+    },
+  });
 
   const initializeData = useCallback(() => {
     const serviceNodes = mockServicesData.nodes.filter(
@@ -462,43 +469,36 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
     setEdges(flowEdges);
   }, [setNodes, setEdges, windowSize, calculateContainerHeight]);
 
+  // Update nodes with real-time status changes
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (
-        selectedItem &&
-        selectedItem.type === SELECTED_ITEM_TYPES.CONNECTION
-      ) {
-        setRealTimeMetrics({ [selectedItem.data.id]: generateMetrics() });
-      }
-    }, LAYOUT_CONSTANTS.INTERVALS.METRICS_UPDATE);
-
-    return () => clearInterval(interval);
-  }, [selectedItem]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
+    if (Object.keys(realTimeData.serviceStatuses).length > 0) {
       setNodes((prevNodes) =>
         prevNodes.map((node) => {
           if (
-            node.type === 'service' &&
-            Math.random() < LAYOUT_CONSTANTS.INTERVALS.STATUS_CHANGE_PROBABILITY
+            node.type === NODE_TYPES.SERVICE &&
+            realTimeData.serviceStatuses[node.id]
           ) {
-            const newStatus = getRandomStatus();
             return {
               ...node,
-              data: { ...node.data, status: newStatus },
+              data: {
+                ...node.data,
+                status: realTimeData.serviceStatuses[node.id],
+              },
             };
           }
           return node;
         })
       );
+    }
+  }, [realTimeData.serviceStatuses, setNodes]);
 
+  // Update edges with real-time status changes
+  useEffect(() => {
+    if (Object.keys(realTimeData.connectionStatuses).length > 0) {
       setEdges((prevEdges) =>
         prevEdges.map((edge) => {
-          if (
-            Math.random() < LAYOUT_CONSTANTS.INTERVALS.EDGE_CHANGE_PROBABILITY
-          ) {
-            const newStatus = getRandomStatus();
+          if (realTimeData.connectionStatuses[edge.id]) {
+            const newStatus = realTimeData.connectionStatuses[edge.id];
             return {
               ...edge,
               data: { ...edge.data, status: newStatus },
@@ -527,10 +527,8 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
           return edge;
         })
       );
-    }, LAYOUT_CONSTANTS.INTERVALS.STATUS_UPDATE);
-
-    return () => clearInterval(interval);
-  }, [setNodes, setEdges]);
+    }
+  }, [realTimeData.connectionStatuses, setEdges]);
 
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     if (node.type === NODE_TYPES.SERVICE) {
@@ -541,7 +539,6 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
 
   const onEdgeClick = useCallback((_event: React.MouseEvent, edge: Edge) => {
     setSelectedItem({ type: SELECTED_ITEM_TYPES.CONNECTION, data: edge.data });
-    setRealTimeMetrics({ [edge.data.id]: generateMetrics() });
     setIsPanelOpen(true);
   }, []);
 
@@ -715,8 +712,9 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
               <DetailsPanel
                 selectedItem={selectedItem}
                 realTimeMetrics={
-                  selectedItem
-                    ? realTimeMetrics[selectedItem.data.id] || {
+                  selectedItem &&
+                  selectedItem.type === SELECTED_ITEM_TYPES.CONNECTION
+                    ? Object.values(realTimeData.metrics).pop() || {
                         rps: 0,
                         latency: 0,
                         errorRate: 0,
