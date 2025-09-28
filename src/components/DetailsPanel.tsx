@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React from 'react';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -13,7 +13,7 @@ import {
   ArrowRight,
   Zap,
 } from 'lucide-react';
-import { RealTimeChart, ChartDataPoint } from './charts';
+import { RealTimeChart } from './charts';
 import { useConnectionMetrics } from '../hooks/useConnectionMetrics';
 
 type ServiceItem = {
@@ -46,51 +46,12 @@ export default function DetailsPanel({
   selectedItem: SelectedItem;
   onClose: () => void;
 }): React.JSX.Element {
-  const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-
   // Use connection metrics hook - only fetch when a connection is selected
-  const { metrics: connectionMetrics } = useConnectionMetrics({
+  const { metrics: connectionMetrics, cachedData } = useConnectionMetrics({
     connectionId:
       selectedItem?.type === 'connection' ? selectedItem.data.id : undefined,
     enabled: selectedItem?.type === 'connection',
   });
-
-  // Add new data point to chart data
-  const addDataPoint = useCallback((newMetrics: typeof connectionMetrics) => {
-    const now = Date.now();
-    const timeString = new Date(now).toLocaleTimeString();
-
-    const newDataPoint: ChartDataPoint = {
-      timestamp: now,
-      time: timeString,
-      rps: newMetrics.rps,
-      latency: newMetrics.latency,
-      errorRate: newMetrics.errorRate,
-    };
-
-    setChartData((prev) => {
-      const updated = [...prev, newDataPoint];
-      // Keep only last 20 data points for performance
-      return updated.slice(-20);
-    });
-  }, []);
-
-  // Clear chart data when selected item changes
-  useEffect(() => {
-    setChartData([]);
-  }, [selectedItem]);
-
-  // Update chart data when connection metrics change
-  useEffect(() => {
-    // Only add to chart if we have valid metrics (not the default zeros)
-    if (
-      connectionMetrics.rps > 0 ||
-      connectionMetrics.latency > 0 ||
-      connectionMetrics.errorRate > 0
-    ) {
-      addDataPoint(connectionMetrics);
-    }
-  }, [connectionMetrics, addDataPoint]);
 
   if (!selectedItem) {
     return (
@@ -288,16 +249,16 @@ export default function DetailsPanel({
                     <span className="text-xs font-medium">Errors</span>
                   </div>
                   <span className="text-lg font-bold text-amber-500">
-                    {connectionMetrics.errorRate || 0}%
+                    {(connectionMetrics.errorRate || 0).toFixed(2)}%
                   </span>
                 </Card>
               </div>
 
               {/* Real-time Charts */}
-              {chartData.length > 0 && (
+              {cachedData.length > 0 && (
                 <div className="space-y-4">
                   <RealTimeChart
-                    data={chartData}
+                    data={cachedData}
                     dataKey="rps"
                     color="#3b82f6"
                     type="area"
@@ -306,7 +267,7 @@ export default function DetailsPanel({
                   />
 
                   <RealTimeChart
-                    data={chartData}
+                    data={cachedData}
                     dataKey="latency"
                     color="#10b981"
                     type="line"
@@ -315,7 +276,7 @@ export default function DetailsPanel({
                   />
 
                   <RealTimeChart
-                    data={chartData}
+                    data={cachedData}
                     dataKey="errorRate"
                     color="#f59e0b"
                     type="area"
@@ -326,8 +287,8 @@ export default function DetailsPanel({
               )}
 
               <div className="mt-4 text-xs text-muted-foreground text-center">
-                {chartData.length > 0
-                  ? `Showing last ${chartData.length} data points • Updates every 2-3 seconds`
+                {cachedData.length > 0
+                  ? `Showing last ${cachedData.length} data points • Updates every 2-3 seconds`
                   : 'Waiting for real-time data...'}
               </div>
             </div>
