@@ -5,12 +5,40 @@ import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '@/components/ui/button';
 
-type CarouselApi = any;
-type CarouselOptions = any;
-type CarouselPlugin = any;
+type CarouselApi = {
+  canScrollNext: () => boolean;
+  canScrollPrev: () => boolean;
+  scrollNext: () => void;
+  scrollPrev: () => void;
+  scrollTo: (index: number) => void;
+  scrollToItem: (index: number) => void;
+  getCurrentIndex: () => number;
+  getTotalCount: () => number;
+};
+
+type CarouselOptions = {
+  align?: 'start' | 'center' | 'end';
+  axis?: 'x' | 'y';
+  containScroll?: 'trimSnaps' | 'keepSnaps' | 'loose' | 'strict' | 'none';
+  direction?: 'ltr' | 'rtl';
+  dragFree?: boolean;
+  includeGapInSize?: boolean;
+  loop?: boolean;
+  orientation?: 'horizontal' | 'vertical';
+  skipSnaps?: boolean;
+  slidesToScroll?: number;
+  speed?: number;
+  startIndex?: number;
+  watchDrag?: boolean;
+  watchResize?: boolean;
+  watchSlides?: boolean;
+  watchThrottle?: number;
+};
+
+type CarouselPlugin = (api: CarouselApi) => void;
 
 type CarouselContextProps = {
-  carouselRef: any;
+  carouselRef: React.RefObject<HTMLDivElement>;
   api: CarouselApi | undefined;
   opts: CarouselOptions | undefined;
   orientation: 'horizontal' | 'vertical';

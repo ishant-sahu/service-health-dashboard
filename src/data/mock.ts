@@ -124,11 +124,11 @@ export const mockServicesData: {
 export const generateMetrics = (): {
   rps: number;
   latency: number;
-  errorRate: string;
+  errorRate: number;
 } => ({
   rps: Math.floor(Math.random() * (1000 - 300) + 300),
   latency: Math.floor(Math.random() * (250 - 50) + 50),
-  errorRate: (Math.random() * 5).toFixed(2),
+  errorRate: Math.round(Math.random() * 5 * 100) / 100,
 });
 
 // Mock status updater for real-time simulation

@@ -8,7 +8,7 @@ type Toast = {
   id: string;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 type State = { toasts: Toast[] };

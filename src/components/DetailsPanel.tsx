@@ -42,7 +42,11 @@ export default function DetailsPanel({
   onClose,
 }: {
   selectedItem: SelectedItem;
-  realTimeMetrics: any;
+  realTimeMetrics: {
+    rps: number;
+    latency: number;
+    errorRate: number;
+  };
   onClose: () => void;
 }): React.JSX.Element {
   const [metrics, setMetrics] = useState(realTimeMetrics);

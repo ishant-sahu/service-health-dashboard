@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import ReactFlow, {
-  addEdge,
   Background,
-  Controls,
-  MiniMap,
   useNodesState,
   useEdgesState,
   MarkerType,
@@ -24,34 +21,43 @@ import DetailsPanel from './DetailsPanel';
 import CustomEdge from './CustomEdge';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
-import { Badge } from './ui/badge';
 import { TooltipProvider } from './ui/tooltip';
-import {
-  PanelRightClose,
-  PanelRight,
-  Activity,
-  Zap,
-  AlertCircle,
-} from 'lucide-react';
+import { PanelRightClose, PanelRight, Activity } from 'lucide-react';
 
 const nodeTypes = {
-  service: ServiceNode as any,
-  environment: EnvironmentNode as any,
+  service: ServiceNode,
+  environment: EnvironmentNode,
 };
 
 const edgeTypes = {
-  custom: CustomEdge as any,
+  custom: CustomEdge as React.ComponentType<
+    React.ComponentProps<typeof CustomEdge>
+  >,
+};
+
+type ServiceData = {
+  name: string;
+  tech: string;
+  version: string;
+  status: 'HEALTHY' | 'DEGRADED' | 'OFFLINE';
+  parent: string;
+};
+
+type ConnectionData = {
+  source: string;
+  target: string;
+  status: 'HEALTHY' | 'DEGRADED' | 'OFFLINE';
 };
 
 type SelectedItem =
-  | { type: 'service'; data: any }
-  | { type: 'connection'; data: any }
+  | { type: 'service'; data: ServiceData }
+  | { type: 'connection'; data: ConnectionData }
   | null;
 
 const ServiceHealthDashboard = (): React.JSX.Element => {
   const [nodes, setNodes, onNodesChangeBase] = useNodesState<Node[]>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge[]>([]);
-  const [isLocked, setIsLocked] = useState(false);
+  const [isLocked] = useState(false);
   const [windowSize, setWindowSize] = useState({
     width: typeof window !== 'undefined' ? window.innerWidth : 1024,
     height: typeof window !== 'undefined' ? window.innerHeight : 768,
@@ -59,35 +65,26 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
 
   // Function to calculate dynamic container height based on services
   const calculateContainerHeight = useCallback(
-    (
-      serviceCount: number,
-      isMobile: boolean,
-      isTablet: boolean,
-      environmentId: string
-    ): number => {
+    (serviceCount: number, isMobile: boolean, isTablet: boolean): number => {
       let containerPadding: number,
         headerHeight: number,
         serviceHeight: number,
-        rowSpacing: number,
         colsPerRow: number;
 
       if (isMobile) {
         containerPadding = 20;
         headerHeight = 60;
         serviceHeight = 140;
-        rowSpacing = serviceHeight + 20; // service height + padding
         colsPerRow = 2;
       } else if (isTablet) {
         containerPadding = 30;
         headerHeight = 70;
         serviceHeight = 150;
-        rowSpacing = serviceHeight + 30; // service height + padding
         colsPerRow = 2;
       } else {
         containerPadding = 40;
         headerHeight = 80;
         serviceHeight = 160;
-        rowSpacing = serviceHeight + 40; // service height + padding
         colsPerRow = 3;
       }
 
@@ -125,12 +122,18 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
 
       const updatedChanges = changes.map((change) => {
         if (
-          (change as any).type === 'position' &&
-          (change as any).position &&
-          (change as any).dragging
+          change.type === 'position' &&
+          'position' in change &&
+          'dragging' in change &&
+          change.dragging
         ) {
-          const node = nodes.find((n) => n.id === (change as any).id);
-          if (node && node.type === 'service' && (node as any).parentNode) {
+          const node = nodes.find((n) => n.id === change.id);
+          if (
+            node &&
+            node.type === 'service' &&
+            'parentNode' in node &&
+            node.parentNode
+          ) {
             const isMobile = windowSize.width < 768;
             const isTablet = windowSize.width >= 768 && windowSize.width < 1024;
 
@@ -143,15 +146,15 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
 
             // Get service count for the parent environment
             const parentServices = nodes.filter(
-              (n: any) =>
+              (n) =>
                 n.type === 'service' &&
-                n.parentNode === (node as any).parentNode
+                'parentNode' in n &&
+                n.parentNode === node.parentNode
             );
             const dynamicHeight = calculateContainerHeight(
               parentServices.length,
               isMobile,
-              isTablet,
-              (node as any).parentNode
+              isTablet
             );
 
             if (isMobile) {
@@ -195,14 +198,16 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
             // Allow bottom row to reach its intended position by using a more generous maxY
             const maxY = containerHeight - serviceHeight;
 
-            (change as any).position.x = Math.max(
-              minX,
-              Math.min(maxX, (change as any).position.x)
-            );
-            (change as any).position.y = Math.max(
-              minY,
-              Math.min(maxY, (change as any).position.y)
-            );
+            if ('position' in change && change.position) {
+              change.position.x = Math.max(
+                minX,
+                Math.min(maxX, change.position.x)
+              );
+              change.position.y = Math.max(
+                minY,
+                Math.min(maxY, change.position.y)
+              );
+            }
           }
         }
         return change;
@@ -215,17 +220,24 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
 
   const [selectedItem, setSelectedItem] = useState<SelectedItem>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const [realTimeMetrics, setRealTimeMetrics] = useState<Record<string, any>>(
-    {}
-  );
+  const [realTimeMetrics, setRealTimeMetrics] = useState<
+    Record<
+      string,
+      {
+        rps: number;
+        latency: number;
+        errorRate: number;
+      }
+    >
+  >({});
   const [isDarkMode, setIsDarkMode] = useState(true);
 
   const initializeData = useCallback(() => {
     const serviceNodes = mockServicesData.nodes.filter(
-      (node: any) => node.type === 'service'
+      (node) => node.type === 'service'
     );
     const environmentNodes = mockServicesData.nodes.filter(
-      (node: any) => node.type === 'environment'
+      (node) => node.type === 'environment'
     );
 
     const isMobile = windowSize.width < 768;
@@ -233,30 +245,28 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
 
     // Calculate dynamic heights for each environment
     const prodServicesList = serviceNodes.filter(
-      (node: any) => node.parent === 'prod-env'
+      (node) => node.parent === 'prod-env'
     );
     const stagingServicesList = serviceNodes.filter(
-      (node: any) => node.parent === 'staging-env'
+      (node) => node.parent === 'staging-env'
     );
 
     const prodHeight = calculateContainerHeight(
       prodServicesList.length,
       isMobile,
-      isTablet,
-      'prod-env'
+      isTablet
     );
     const stagingHeight = calculateContainerHeight(
       stagingServicesList.length,
       isMobile,
-      isTablet,
-      'staging-env'
+      isTablet
     );
 
     let envPositions: Record<string, { x: number; y: number }>;
     if (isMobile) {
       // Calculate container width needed for two columns with increased spacing
-      const serviceWidth = 180; // Fixed width for mobile services
-      const containerWidth = 2 * serviceWidth + 40 + 40; // Two services + 40px spacing + 40px padding
+      // const serviceWidth = 180; // Fixed width for mobile services
+      // const containerWidth = 2 * serviceWidth + 40 + 40; // Two services + 40px spacing + 40px padding
       const centerX = 20; // 20px margin from left edge
       envPositions = {
         'prod-env': { x: centerX, y: 20 },
@@ -282,7 +292,7 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
 
     const flowNodes: Node[] = [];
 
-    environmentNodes.forEach((env: any) => {
+    environmentNodes.forEach((env) => {
       const dynamicHeight = env.id === 'prod-env' ? prodHeight : stagingHeight;
 
       flowNodes.push({
@@ -300,16 +310,14 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
       } as unknown as Node);
     });
 
-    prodServicesList.forEach((service: any, index: number) => {
+    prodServicesList.forEach((service, index: number) => {
       let row: number,
         col: number,
         serviceWidth: number,
         serviceHeight: number,
         containerPadding: number,
         headerHeight: number,
-        rowSpacing: number,
         containerWidth: number,
-        containerHeight: number,
         colsPerRow: number;
 
       if (isMobile) {
@@ -319,9 +327,7 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
         containerPadding = 20;
         headerHeight = 60;
         serviceHeight = 140;
-        rowSpacing = serviceHeight + 20; // service height + padding
         containerWidth = 2 * serviceWidth + 40 + 40; // Two services + 40px spacing + 40px padding
-        containerHeight = prodHeight;
         colsPerRow = 2;
       } else if (isTablet) {
         row = Math.floor(index / 2);
@@ -330,13 +336,11 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
         containerPadding = 30;
         headerHeight = 70;
         serviceHeight = 150;
-        rowSpacing = serviceHeight + 30; // service height + padding
         // Calculate container width based on service count and spacing
         const spacing = 50; // Minimum spacing between services
         const maxCol = Math.min(1, 1); // For 2 columns, max column index is 1
         const maxServiceX = 30 + maxCol * (serviceWidth + spacing); // containerPadding + maxCol * (serviceWidth + spacing)
         containerWidth = maxServiceX + serviceWidth + 30; // maxX + serviceWidth + rightPadding
-        containerHeight = prodHeight;
         colsPerRow = 2;
       } else {
         row = Math.floor(index / 3);
@@ -345,9 +349,7 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
         containerPadding = 40;
         headerHeight = 80;
         serviceHeight = 160;
-        rowSpacing = serviceHeight + 40; // service height + padding
         containerWidth = Math.min(windowSize.width - 200, 1200);
-        containerHeight = prodHeight;
         colsPerRow = 3;
       }
 
@@ -387,7 +389,7 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
       } as unknown as Node);
     });
 
-    stagingServicesList.forEach((service: any, index: number) => {
+    stagingServicesList.forEach((service, index: number) => {
       let containerPadding: number,
         headerHeight: number,
         serviceWidth: number,
@@ -451,7 +453,7 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
       } as unknown as Node);
     });
 
-    const flowEdges: Edge[] = mockServicesData.connections.map((conn: any) => ({
+    const flowEdges: Edge[] = mockServicesData.connections.map((conn) => ({
       id: conn.id,
       source: conn.source,
       target: conn.target,
@@ -486,7 +488,7 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
   useEffect(() => {
     const interval = setInterval(() => {
       if (selectedItem && selectedItem.type === 'connection') {
-        setRealTimeMetrics(generateMetrics());
+        setRealTimeMetrics({ [selectedItem.data.id]: generateMetrics() });
       }
     }, 2500);
 
@@ -496,20 +498,20 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
   useEffect(() => {
     const interval = setInterval(() => {
       setNodes((prevNodes) =>
-        prevNodes.map((node: any) => {
+        prevNodes.map((node) => {
           if (node.type === 'service' && Math.random() < 0.1) {
             const newStatus = getRandomStatus();
             return {
               ...node,
               data: { ...node.data, status: newStatus },
-            } as any;
+            };
           }
           return node;
         })
       );
 
       setEdges((prevEdges) =>
-        prevEdges.map((edge: any) => {
+        prevEdges.map((edge) => {
           if (Math.random() < 0.05) {
             const newStatus = getRandomStatus();
             return {
@@ -536,7 +538,7 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
                     ? '#f59e0b'
                     : '#ef4444',
               },
-            } as any;
+            };
           }
           return edge;
         })
@@ -546,16 +548,16 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
     return () => clearInterval(interval);
   }, [setNodes, setEdges]);
 
-  const onNodeClick = useCallback((event: React.MouseEvent, node: any) => {
+  const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     if (node.type === 'service') {
       setSelectedItem({ type: 'service', data: node.data });
       setIsPanelOpen(true);
     }
   }, []);
 
-  const onEdgeClick = useCallback((event: React.MouseEvent, edge: any) => {
+  const onEdgeClick = useCallback((_event: React.MouseEvent, edge: Edge) => {
     setSelectedItem({ type: 'connection', data: edge.data });
-    setRealTimeMetrics(generateMetrics());
+    setRealTimeMetrics({ [edge.data.id]: generateMetrics() });
     setIsPanelOpen(true);
   }, []);
 
@@ -565,7 +567,7 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
   }, []);
 
   const onNodeDrag = useCallback(
-    (event: React.MouseEvent, node: any) => {
+    (_event: React.MouseEvent, node: Node) => {
       if (node.type === 'service' && node.parentNode) {
         const parentNode = nodes.find((n) => n.id === node.parentNode);
         if (parentNode) {
@@ -581,13 +583,12 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
 
           // Get service count for the parent environment
           const parentServices = nodes.filter(
-            (n: any) => n.type === 'service' && n.parentNode === node.parentNode
+            (n) => n.type === 'service' && n.parentNode === node.parentNode
           );
           const dynamicHeight = calculateContainerHeight(
             parentServices.length,
             isMobile,
-            isTablet,
-            node.parentNode
+            isTablet
           );
 
           if (isMobile) {
@@ -630,15 +631,15 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
   );
 
   const dashboardStats = useMemo(() => {
-    const serviceNodes = nodes.filter((n: any) => n.type === 'service');
+    const serviceNodes = nodes.filter((n) => n.type === 'service');
     const healthy = serviceNodes.filter(
-      (n: any) => n.data.status === 'HEALTHY'
+      (n) => n.data && 'status' in n.data && n.data.status === 'HEALTHY'
     ).length;
     const degraded = serviceNodes.filter(
-      (n: any) => n.data.status === 'DEGRADED'
+      (n) => n.data && 'status' in n.data && n.data.status === 'DEGRADED'
     ).length;
     const offline = serviceNodes.filter(
-      (n: any) => n.data.status === 'OFFLINE'
+      (n) => n.data && 'status' in n.data && n.data.status === 'OFFLINE'
     ).length;
 
     return { total: serviceNodes.length, healthy, degraded, offline };
@@ -781,7 +782,7 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
                       : 'bg-card border'
                   } hidden sm:block`}
                   nodeStrokeWidth={3}
-                  nodeColor={(node: any) => {
+                  nodeColor={(node: Node) => {
                     if (node.data?.status === 'HEALTHY') return '#10b981';
                     if (node.data?.status === 'DEGRADED') return '#f59e0b';
                     if (node.data?.status === 'OFFLINE') return '#ef4444';
@@ -794,8 +795,14 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
             {/* Details Panel */}
             {isPanelOpen && (
               <DetailsPanel
-                selectedItem={selectedItem as any}
-                realTimeMetrics={realTimeMetrics}
+                selectedItem={selectedItem}
+                realTimeMetrics={
+                  realTimeMetrics[selectedItem.data.id] || {
+                    rps: 0,
+                    latency: 0,
+                    errorRate: 0,
+                  }
+                }
                 onClose={() => setIsPanelOpen(false)}
               />
             )}
