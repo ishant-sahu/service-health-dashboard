@@ -53,13 +53,26 @@ export const useConnectionMetrics = (
       const seed = connectionId.charCodeAt(0);
       const variation = (seed % 100) / 100; // 0-1 variation based on connection ID
 
+      // Helper to clamp a number between a min and max
+      const clamp = (value: number, min: number, max: number): number =>
+        Math.min(max, Math.max(min, value));
+
+      // Apply small variation per-connection, then CLAMP to requested ranges:
+      // RPS: 300 - 1000
+      // Latency: 50 - 250 ms
+      // Error rate: 0.00% - 5.00%
+      const variedRps = Math.floor(event.data.rps * (0.8 + variation * 0.4));
+      const variedLatency = Math.floor(
+        event.data.latency * (0.7 + variation * 0.6)
+      );
+      const variedErrorRate = Number(
+        (event.data.errorRate * (0.5 + variation * 1.0)).toFixed(2)
+      );
+
       const connectionSpecificMetrics: ConnectionMetrics = {
-        rps: Math.floor(event.data.rps * (0.8 + variation * 0.4)), // 80-120% of base
-        latency: Math.floor(event.data.latency * (0.7 + variation * 0.6)), // 70-130% of base
-        errorRate: Math.min(
-          100,
-          event.data.errorRate * (0.5 + variation * 1.0)
-        ), // 50-150% of base
+        rps: clamp(variedRps, 300, 1000),
+        latency: clamp(variedLatency, 50, 250),
+        errorRate: clamp(variedErrorRate, 0, 5),
       };
 
       setMetrics(connectionSpecificMetrics);

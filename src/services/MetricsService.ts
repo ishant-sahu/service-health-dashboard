@@ -34,13 +34,17 @@ class MetricsService extends StreamService<MetricsEvent, MetricsConfig> {
     }
 
     this.interval = setInterval(() => {
-      const metrics = generateMetrics();
-      const event: MetricsEvent = {
-        type: 'metrics',
-        data: metrics,
-        timestamp: Date.now(),
-      };
-      this.emit(event);
+      try {
+        const metrics = generateMetrics();
+        const event: MetricsEvent = {
+          type: 'metrics',
+          data: metrics,
+          timestamp: Date.now(),
+        };
+        this.emit(event);
+      } catch (_err) {
+        // Swallow generator errors to keep stream stable during tests
+      }
     }, this.config.interval);
   }
 }

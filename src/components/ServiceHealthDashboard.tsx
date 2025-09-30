@@ -27,6 +27,7 @@ import {
 } from '../constants/dashboard';
 import { isMobile, isTablet, getLayoutConstants } from '../utils/responsive';
 import { useStatusUpdates } from '../hooks/useStatusUpdates';
+import { useScreenReaderAnnouncements } from '../hooks/useScreenReaderAnnouncements';
 
 const nodeTypes = {
   [NODE_TYPES.SERVICE]: ServiceNode,
@@ -214,6 +215,15 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
         LAYOUT_CONSTANTS.INTERVALS.EDGE_CHANGE_PROBABILITY,
     },
   });
+
+  // Use screen reader announcements
+  const {
+    announceServiceStatusChange,
+    announceConnectionStatusChange,
+    announcePanelOpen,
+    announcePanelClose,
+    announceDashboardStats,
+  } = useScreenReaderAnnouncements();
 
   const initializeData = useCallback(() => {
     const serviceNodes = mockServicesData.nodes.filter(
@@ -482,11 +492,24 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
             node.type === NODE_TYPES.SERVICE &&
             statusData.serviceStatuses[node.id]
           ) {
+            const nodeData = node.data as unknown as ServiceData;
+            const oldStatus = nodeData?.status;
+            const newStatus = statusData.serviceStatuses[node.id];
+
+            // Announce status change if it's different
+            if (oldStatus && oldStatus !== newStatus) {
+              announceServiceStatusChange(
+                nodeData?.name || 'Unknown Service',
+                oldStatus,
+                newStatus
+              );
+            }
+
             return {
               ...node,
               data: {
                 ...node.data,
-                status: statusData.serviceStatuses[node.id],
+                status: newStatus,
               },
             };
           }
@@ -494,7 +517,7 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
         })
       );
     }
-  }, [statusData.serviceStatuses, setNodes]);
+  }, [statusData.serviceStatuses, setNodes, announceServiceStatusChange]);
 
   // Update edges with status changes
   useEffect(() => {
@@ -502,7 +525,20 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
       setEdges((prevEdges) =>
         prevEdges.map((edge) => {
           if (statusData.connectionStatuses[edge.id]) {
+            const edgeData = edge.data as unknown as ConnectionData;
+            const oldStatus = edgeData?.status;
             const newStatus = statusData.connectionStatuses[edge.id];
+
+            // Announce connection status change if it's different
+            if (oldStatus && oldStatus !== newStatus && edgeData) {
+              announceConnectionStatusChange(
+                edgeData.source || 'Unknown Source',
+                edgeData.target || 'Unknown Target',
+                oldStatus,
+                newStatus
+              );
+            }
+
             return {
               ...edge,
               data: { ...edge.data, status: newStatus },
@@ -532,24 +568,39 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
         })
       );
     }
-  }, [statusData.connectionStatuses, setEdges]);
+  }, [statusData.connectionStatuses, setEdges, announceConnectionStatusChange]);
 
-  const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
-    if (node.type === NODE_TYPES.SERVICE) {
-      setSelectedItem({ type: SELECTED_ITEM_TYPES.SERVICE, data: node.data });
+  const onNodeClick = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      if (node.type === NODE_TYPES.SERVICE) {
+        setSelectedItem({ type: SELECTED_ITEM_TYPES.SERVICE, data: node.data });
+        setIsPanelOpen(true);
+        announcePanelOpen('service', node.data.name);
+      }
+    },
+    [announcePanelOpen]
+  );
+
+  const onEdgeClick = useCallback(
+    (_event: React.MouseEvent, edge: Edge) => {
+      setSelectedItem({
+        type: SELECTED_ITEM_TYPES.CONNECTION,
+        data: edge.data,
+      });
       setIsPanelOpen(true);
-    }
-  }, []);
-
-  const onEdgeClick = useCallback((_event: React.MouseEvent, edge: Edge) => {
-    setSelectedItem({ type: SELECTED_ITEM_TYPES.CONNECTION, data: edge.data });
-    setIsPanelOpen(true);
-  }, []);
+      announcePanelOpen(
+        'connection',
+        `${edge.data.source} to ${edge.data.target}`
+      );
+    },
+    [announcePanelOpen]
+  );
 
   const onPaneClick = useCallback(() => {
     setSelectedItem(null);
     setIsPanelOpen(false);
-  }, []);
+    announcePanelClose();
+  }, [announcePanelClose]);
 
   const onNodeDrag = useCallback(
     (_event: React.MouseEvent, node: Node) => {
@@ -617,8 +668,18 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
         n.data && 'status' in n.data && n.data.status === SERVICE_STATUS.OFFLINE
     ).length;
 
-    return { total: serviceNodes.length, healthy, degraded, offline };
-  }, [nodes]);
+    const stats = { total: serviceNodes.length, healthy, degraded, offline };
+
+    // Announce dashboard stats when they change
+    announceDashboardStats(
+      stats.total,
+      stats.healthy,
+      stats.degraded,
+      stats.offline
+    );
+
+    return stats;
+  }, [nodes, announceDashboardStats]);
 
   useEffect(() => {
     initializeData();
@@ -652,11 +713,12 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
           />
 
           {/* Main Content */}
-          <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+          <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
             <div
               className={`flex-1 relative min-h-0 ${
                 windowSize.width < 768 ? 'p-0 overflow-x-auto' : 'p-4'
               }`}
+              aria-label="Service health dashboard visualization"
             >
               <ReactFlow
                 nodes={nodes}
@@ -682,6 +744,7 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
                 nodesDraggable={true}
                 nodesConnectable={false}
                 elementsSelectable={true}
+                aria-label="Interactive service topology diagram"
               >
                 <Background
                   gap={LAYOUT_CONSTANTS.REACT_FLOW.BACKGROUND_GAP}
@@ -701,7 +764,7 @@ const ServiceHealthDashboard = (): React.JSX.Element => {
                 }}
               />
             )}
-          </div>
+          </main>
         </div>
       </div>
     </TooltipProvider>

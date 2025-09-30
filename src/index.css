@@ -219,3 +219,57 @@ code {
     height: 80px !important;
   }
 }
+
+/* Accessibility styles */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Focus styles for better accessibility */
+.focus\:ring-2:focus {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px hsl(var(--ring));
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .react-flow__edge-path {
+    stroke-width: 3px !important;
+  }
+  
+  .react-flow__handle {
+    border-width: 3px !important;
+  }
+  
+  .react-flow__node {
+    border-width: 2px !important;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .react-flow__edge-path {
+    animation: none !important;
+  }
+  
+  .transition-all {
+    transition: none !important;
+  }
+  
+  .hover\:scale-105:hover {
+    transform: none !important;
+  }
+  
+  .hover\:-translate-y-1:hover {
+    transform: none !important;
+  }
+}

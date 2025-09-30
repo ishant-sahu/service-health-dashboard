@@ -92,6 +92,18 @@ export default function ServiceNode({
   const isMobileDevice =
     typeof window !== 'undefined' && isMobile(window.innerWidth);
 
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      // Trigger click event programmatically
+      const clickEvent = new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+      });
+      event.currentTarget.dispatchEvent(clickEvent);
+    }
+  };
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -104,16 +116,23 @@ export default function ServiceNode({
             } 
             cursor-pointer transition-all duration-300 
             hover:shadow-xl hover:scale-105 hover:-translate-y-1
+            focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2
             ${getStatusColor(data.status)}
             ${selected ? 'ring-2 ring-primary shadow-xl scale-105' : ''}
             backdrop-blur-sm relative z-10
           `}
           style={{ zIndex: 10 }}
+          role="button"
+          tabIndex={0}
+          aria-label={`Service ${data.name}, ${data.tech} version ${data.version}, status: ${data.status}`}
+          aria-describedby={`service-${data.name}-description`}
+          onKeyDown={handleKeyDown}
         >
           <Handle
             type="target"
             position={Position.Top}
             className="!bg-muted-foreground !border-2 !border-background !w-4 !h-4 !top-[-8px]"
+            aria-hidden="true"
           />
 
           <div
@@ -125,6 +144,7 @@ export default function ServiceNode({
               className={`${
                 isMobileDevice ? 'p-1.5' : 'p-2'
               } rounded-lg bg-background/80 border`}
+              aria-hidden="true"
             >
               {getServiceIcon(data.tech)}
             </div>
@@ -133,6 +153,7 @@ export default function ServiceNode({
                 className={`${
                   isMobileDevice ? 'text-xs' : 'text-sm'
                 } font-bold truncate mb-1`}
+                id={`service-${data.name}-title`}
               >
                 {data.name}
               </h3>
@@ -140,11 +161,14 @@ export default function ServiceNode({
                 className={`${
                   isMobileDevice ? 'text-xs' : 'text-xs'
                 } text-muted-foreground`}
+                id={`service-${data.name}-description`}
               >
-                {data.tech}
+                {data.tech} service
               </p>
             </div>
-            <div className="mt-1">{getStatusIcon(data.status)}</div>
+            <div className="mt-1" aria-hidden="true">
+              {getStatusIcon(data.status)}
+            </div>
           </div>
 
           <div
@@ -157,6 +181,7 @@ export default function ServiceNode({
               className={`${
                 isMobileDevice ? 'text-xs px-1.5 py-0.5' : 'text-xs px-2 py-1'
               }`}
+              aria-label={`Version ${data.version}`}
             >
               v{data.version}
             </Badge>
@@ -169,6 +194,7 @@ export default function ServiceNode({
               className={`${
                 isMobileDevice ? 'text-xs px-1.5 py-0.5' : 'text-xs px-2 py-1'
               } font-medium`}
+              aria-label={`Status: ${data.status}`}
             >
               {data.status}
             </Badge>
@@ -178,6 +204,7 @@ export default function ServiceNode({
             type="source"
             position={Position.Bottom}
             className="!bg-muted-foreground !border-2 !border-background !w-4 !h-4 !bottom-[-8px]"
+            aria-hidden="true"
           />
         </Card>
       </TooltipTrigger>
@@ -196,6 +223,7 @@ export default function ServiceNode({
                   ? COLOR_CONSTANTS.STATUS_DOTS.DEGRADED
                   : COLOR_CONSTANTS.STATUS_DOTS.OFFLINE
               }`}
+              aria-hidden="true"
             />
             <span className="text-xs font-medium">{data.status}</span>
           </div>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { RealTimeChart } from './charts';
 import { useConnectionMetrics } from '../hooks/useConnectionMetrics';
+import { usePanelFocusManagement } from '../hooks/useFocusManagement';
+import { useScreenReaderAnnouncements } from '../hooks/useScreenReaderAnnouncements';
 import {
   SERVICE_STATUS,
   COLOR_CONSTANTS,
@@ -64,8 +66,44 @@ export default function DetailsPanel({
     enabled: selectedItem?.type === SELECTED_ITEM_TYPES.CONNECTION,
   });
 
+  // Use focus management for the panel
+  const { panelRef } = usePanelFocusManagement(!!selectedItem);
+
+  // Use screen reader announcements
+  const { announceMetricsUpdate } = useScreenReaderAnnouncements();
+
   const isMobileDevice =
     typeof window !== 'undefined' && isMobile(window.innerWidth);
+
+  // Handle escape key to close panel
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && selectedItem) {
+        onClose();
+      }
+    };
+
+    if (selectedItem) {
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
+    }
+  }, [selectedItem, onClose]);
+
+  // Announce metrics updates for connections
+  useEffect(() => {
+    if (
+      selectedItem?.type === SELECTED_ITEM_TYPES.CONNECTION &&
+      connectionMetrics.rps !== undefined &&
+      connectionMetrics.latency !== undefined &&
+      connectionMetrics.errorRate !== undefined
+    ) {
+      announceMetricsUpdate(
+        connectionMetrics.rps,
+        connectionMetrics.latency,
+        connectionMetrics.errorRate
+      );
+    }
+  }, [selectedItem, connectionMetrics, announceMetricsUpdate]);
 
   if (!selectedItem) {
     return (
@@ -86,11 +124,15 @@ export default function DetailsPanel({
 
   return (
     <Card
+      ref={panelRef}
       className={`${
         isMobileDevice
           ? `${DETAILS_PANEL_CONSTANTS.DIMENSIONS.MOBILE_WIDTH} ${DETAILS_PANEL_CONSTANTS.DIMENSIONS.HEIGHT} fixed top-0 right-0 z-50`
           : `${DETAILS_PANEL_CONSTANTS.DIMENSIONS.DESKTOP_WIDTH} ${DETAILS_PANEL_CONSTANTS.DIMENSIONS.HEIGHT} border-l`
-      } bg-card/95 backdrop-blur overflow-y-auto`}
+      } bg-card/95 backdrop-blur overflow-y-auto focus:outline-none`}
+      role="complementary"
+      aria-label="Service details panel"
+      tabIndex={-1}
     >
       <div
         className={`${
@@ -105,11 +147,20 @@ export default function DetailsPanel({
               ? DETAILS_PANEL_CONSTANTS.TEXT_SIZES.MOBILE_TITLE
               : DETAILS_PANEL_CONSTANTS.TEXT_SIZES.DESKTOP_TITLE
           } font-semibold`}
+          id="details-panel-title"
         >
           {DETAILS_PANEL_CONSTANTS.TEXTS.TITLE}
         </h2>
-        <Button variant="ghost" size="sm" onClick={onClose}>
-          <X className={DETAILS_PANEL_CONSTANTS.ICON_SIZES.CLOSE} />
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onClose}
+          aria-label="Close details panel"
+        >
+          <X
+            className={DETAILS_PANEL_CONSTANTS.ICON_SIZES.CLOSE}
+            aria-hidden="true"
+          />
         </Button>
       </div>
 
@@ -121,194 +172,227 @@ export default function DetailsPanel({
         }`}
       >
         {selectedItem.type === SELECTED_ITEM_TYPES.SERVICE && (
-          <div>
+          <div role="region" aria-labelledby="service-details-heading">
             <div className="flex items-center gap-2 mb-4">
               <Server
                 className={`${DETAILS_PANEL_CONSTANTS.ICON_SIZES.SECTION} text-primary`}
+                aria-hidden="true"
               />
               <h3
                 className={`${DETAILS_PANEL_CONSTANTS.TEXT_SIZES.SECTION_TITLE} font-semibold`}
+                id="service-details-heading"
               >
                 {DETAILS_PANEL_CONSTANTS.TEXTS.SERVICE_DETAILS}
               </h3>
             </div>
 
-            <div className="space-y-3">
+            <dl className="space-y-3">
               <div>
-                <label
+                <dt
                   className={`${DETAILS_PANEL_CONSTANTS.TEXT_SIZES.LABEL} font-medium text-muted-foreground`}
                 >
                   {DETAILS_PANEL_CONSTANTS.TEXTS.NAME}
-                </label>
-                <p
+                </dt>
+                <dd
                   className={`${DETAILS_PANEL_CONSTANTS.TEXT_SIZES.VALUE} font-medium`}
                 >
                   {selectedItem.data.name}
-                </p>
+                </dd>
               </div>
 
               <div>
-                <label
+                <dt
                   className={`${DETAILS_PANEL_CONSTANTS.TEXT_SIZES.LABEL} font-medium text-muted-foreground`}
                 >
                   {DETAILS_PANEL_CONSTANTS.TEXTS.TYPE}
-                </label>
-                <Badge variant="outline" className="ml-2">
-                  {selectedItem.data.tech}
-                </Badge>
+                </dt>
+                <dd>
+                  <Badge
+                    variant="outline"
+                    className="ml-2"
+                    aria-label={`Technology: ${selectedItem.data.tech}`}
+                  >
+                    {selectedItem.data.tech}
+                  </Badge>
+                </dd>
               </div>
 
               <div>
-                <label
+                <dt
                   className={`${DETAILS_PANEL_CONSTANTS.TEXT_SIZES.LABEL} font-medium text-muted-foreground`}
                 >
                   {DETAILS_PANEL_CONSTANTS.TEXTS.VERSION}
-                </label>
-                <p className={DETAILS_PANEL_CONSTANTS.TEXT_SIZES.VALUE}>
+                </dt>
+                <dd className={DETAILS_PANEL_CONSTANTS.TEXT_SIZES.VALUE}>
                   {selectedItem.data.version}
-                </p>
+                </dd>
               </div>
 
               <div>
-                <label
+                <dt
                   className={`${DETAILS_PANEL_CONSTANTS.TEXT_SIZES.LABEL} font-medium text-muted-foreground`}
                 >
                   {DETAILS_PANEL_CONSTANTS.TEXTS.STATUS}
-                </label>
-                <div className="flex items-center gap-2 mt-1">
-                  <div
-                    className={`${
-                      DETAILS_PANEL_CONSTANTS.STATUS_DOT
-                    } rounded-full ${
-                      selectedItem.data.status === SERVICE_STATUS.HEALTHY
-                        ? COLOR_CONSTANTS.STATUS_DOTS.HEALTHY
-                        : selectedItem.data.status === SERVICE_STATUS.DEGRADED
-                        ? COLOR_CONSTANTS.STATUS_DOTS.DEGRADED
-                        : COLOR_CONSTANTS.STATUS_DOTS.OFFLINE
-                    }`}
-                  />
-                  <Badge
-                    variant={
-                      selectedItem.data.status === SERVICE_STATUS.HEALTHY
-                        ? 'default'
-                        : 'destructive'
-                    }
-                  >
-                    {selectedItem.data.status}
-                  </Badge>
-                </div>
+                </dt>
+                <dd>
+                  <div className="flex items-center gap-2 mt-1">
+                    <div
+                      className={`${
+                        DETAILS_PANEL_CONSTANTS.STATUS_DOT
+                      } rounded-full ${
+                        selectedItem.data.status === SERVICE_STATUS.HEALTHY
+                          ? COLOR_CONSTANTS.STATUS_DOTS.HEALTHY
+                          : selectedItem.data.status === SERVICE_STATUS.DEGRADED
+                          ? COLOR_CONSTANTS.STATUS_DOTS.DEGRADED
+                          : COLOR_CONSTANTS.STATUS_DOTS.OFFLINE
+                      }`}
+                      aria-hidden="true"
+                    />
+                    <Badge
+                      variant={
+                        selectedItem.data.status === SERVICE_STATUS.HEALTHY
+                          ? 'default'
+                          : 'destructive'
+                      }
+                      aria-label={`Service status: ${selectedItem.data.status}`}
+                    >
+                      {selectedItem.data.status}
+                    </Badge>
+                  </div>
+                </dd>
               </div>
 
               <div>
-                <label
+                <dt
                   className={`${DETAILS_PANEL_CONSTANTS.TEXT_SIZES.LABEL} font-medium text-muted-foreground`}
                 >
                   {DETAILS_PANEL_CONSTANTS.TEXTS.ENVIRONMENT}
-                </label>
-                <p className={DETAILS_PANEL_CONSTANTS.TEXT_SIZES.VALUE}>
+                </dt>
+                <dd className={DETAILS_PANEL_CONSTANTS.TEXT_SIZES.VALUE}>
                   {selectedItem.data.parent === ENVIRONMENT_IDS.PROD
                     ? ENVIRONMENT_NAMES.PROD
                     : ENVIRONMENT_NAMES.STAGING}
-                </p>
+                </dd>
               </div>
-            </div>
+            </dl>
           </div>
         )}
 
         {selectedItem.type === SELECTED_ITEM_TYPES.CONNECTION && (
-          <div>
+          <div role="region" aria-labelledby="connection-details-heading">
             <div className="flex items-center gap-2 mb-4">
               <ArrowRight
                 className={`${DETAILS_PANEL_CONSTANTS.ICON_SIZES.SECTION} text-primary`}
+                aria-hidden="true"
               />
               <h3
                 className={`${DETAILS_PANEL_CONSTANTS.TEXT_SIZES.SECTION_TITLE} font-semibold`}
+                id="connection-details-heading"
               >
                 {DETAILS_PANEL_CONSTANTS.TEXTS.CONNECTION_DETAILS}
               </h3>
             </div>
 
-            <div className="space-y-3 mb-6">
+            <dl className="space-y-3 mb-6">
               <div>
-                <label
+                <dt
                   className={`${DETAILS_PANEL_CONSTANTS.TEXT_SIZES.LABEL} font-medium text-muted-foreground`}
                 >
                   {DETAILS_PANEL_CONSTANTS.TEXTS.SOURCE_SERVICE}
-                </label>
-                <p
+                </dt>
+                <dd
                   className={`${DETAILS_PANEL_CONSTANTS.TEXT_SIZES.VALUE} font-medium`}
                 >
                   {selectedItem.data.source}
-                </p>
+                </dd>
               </div>
 
               <div>
-                <label
+                <dt
                   className={`${DETAILS_PANEL_CONSTANTS.TEXT_SIZES.LABEL} font-medium text-muted-foreground`}
                 >
                   {DETAILS_PANEL_CONSTANTS.TEXTS.TARGET_SERVICE}
-                </label>
-                <p
+                </dt>
+                <dd
                   className={`${DETAILS_PANEL_CONSTANTS.TEXT_SIZES.VALUE} font-medium`}
                 >
                   {selectedItem.data.target}
-                </p>
+                </dd>
               </div>
 
               <div>
-                <label
+                <dt
                   className={`${DETAILS_PANEL_CONSTANTS.TEXT_SIZES.LABEL} font-medium text-muted-foreground`}
                 >
                   {DETAILS_PANEL_CONSTANTS.TEXTS.CONNECTION_STATUS}
-                </label>
-                <div className="flex items-center gap-2 mt-1">
-                  <div
-                    className={`${
-                      DETAILS_PANEL_CONSTANTS.STATUS_DOT
-                    } rounded-full ${
-                      selectedItem.data.status === SERVICE_STATUS.HEALTHY
-                        ? COLOR_CONSTANTS.STATUS_DOTS.HEALTHY
-                        : selectedItem.data.status === SERVICE_STATUS.DEGRADED
-                        ? COLOR_CONSTANTS.STATUS_DOTS.DEGRADED
-                        : COLOR_CONSTANTS.STATUS_DOTS.OFFLINE
-                    }`}
-                  />
-                  <Badge
-                    variant={
-                      selectedItem.data.status === SERVICE_STATUS.HEALTHY
-                        ? 'default'
-                        : 'destructive'
-                    }
-                  >
-                    {selectedItem.data.status}
-                  </Badge>
-                </div>
+                </dt>
+                <dd>
+                  <div className="flex items-center gap-2 mt-1">
+                    <div
+                      className={`${
+                        DETAILS_PANEL_CONSTANTS.STATUS_DOT
+                      } rounded-full ${
+                        selectedItem.data.status === SERVICE_STATUS.HEALTHY
+                          ? COLOR_CONSTANTS.STATUS_DOTS.HEALTHY
+                          : selectedItem.data.status === SERVICE_STATUS.DEGRADED
+                          ? COLOR_CONSTANTS.STATUS_DOTS.DEGRADED
+                          : COLOR_CONSTANTS.STATUS_DOTS.OFFLINE
+                      }`}
+                      aria-hidden="true"
+                    />
+                    <Badge
+                      variant={
+                        selectedItem.data.status === SERVICE_STATUS.HEALTHY
+                          ? 'default'
+                          : 'destructive'
+                      }
+                      aria-label={`Connection status: ${selectedItem.data.status}`}
+                    >
+                      {selectedItem.data.status}
+                    </Badge>
+                  </div>
+                </dd>
               </div>
-            </div>
+            </dl>
 
             <Separator />
 
-            <div className="mt-6">
+            <div
+              className="mt-6"
+              role="region"
+              aria-labelledby="metrics-heading"
+            >
               <div className="flex items-center gap-2 mb-4">
                 <Zap
                   className={`${DETAILS_PANEL_CONSTANTS.ICON_SIZES.METRICS_HEADER} text-primary`}
+                  aria-hidden="true"
                 />
-                <h4 className="font-semibold">
+                <h4 className="font-semibold" id="metrics-heading">
                   {DETAILS_PANEL_CONSTANTS.TEXTS.REAL_TIME_METRICS}
                 </h4>
                 <div
                   className={`${DETAILS_PANEL_CONSTANTS.STATUS_DOT} ${COLOR_CONSTANTS.STATUS_DOTS.HEALTHY} rounded-full ${DETAILS_PANEL_CONSTANTS.ANIMATION.PULSE}`}
+                  aria-hidden="true"
                 />
               </div>
 
               {/* Current Metrics Cards */}
               <div
                 className={`grid ${DETAILS_PANEL_CONSTANTS.GRID.METRICS} gap-2 mb-4`}
+                role="group"
+                aria-label="Connection metrics"
               >
-                <Card className="p-2 text-center">
+                <Card
+                  className="p-2 text-center"
+                  role="status"
+                  aria-label={`Requests per second: ${
+                    connectionMetrics.rps || 0
+                  }`}
+                >
                   <div className="flex items-center justify-center gap-1 mb-1">
                     <TrendingUp
                       className={`${DETAILS_PANEL_CONSTANTS.ICON_SIZES.METRIC} text-blue-500`}
+                      aria-hidden="true"
                     />
                     <span
                       className={`${DETAILS_PANEL_CONSTANTS.TEXT_SIZES.METRIC_LABEL} font-medium`}
@@ -323,10 +407,17 @@ export default function DetailsPanel({
                   </span>
                 </Card>
 
-                <Card className="p-2 text-center">
+                <Card
+                  className="p-2 text-center"
+                  role="status"
+                  aria-label={`Response latency: ${
+                    connectionMetrics.latency || 0
+                  } milliseconds`}
+                >
                   <div className="flex items-center justify-center gap-1 mb-1">
                     <Clock
                       className={`${DETAILS_PANEL_CONSTANTS.ICON_SIZES.METRIC} text-green-500`}
+                      aria-hidden="true"
                     />
                     <span
                       className={`${DETAILS_PANEL_CONSTANTS.TEXT_SIZES.METRIC_LABEL} font-medium`}
@@ -341,10 +432,17 @@ export default function DetailsPanel({
                   </span>
                 </Card>
 
-                <Card className="p-2 text-center">
+                <Card
+                  className="p-2 text-center"
+                  role="status"
+                  aria-label={`Error rate: ${(
+                    connectionMetrics.errorRate || 0
+                  ).toFixed(2)} percent`}
+                >
                   <div className="flex items-center justify-center gap-1 mb-1">
                     <AlertTriangle
                       className={`${DETAILS_PANEL_CONSTANTS.ICON_SIZES.METRIC} text-amber-500`}
+                      aria-hidden="true"
                     />
                     <span
                       className={`${DETAILS_PANEL_CONSTANTS.TEXT_SIZES.METRIC_LABEL} font-medium`}

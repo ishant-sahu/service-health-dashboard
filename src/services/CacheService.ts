@@ -52,8 +52,12 @@ export class CacheService<T> {
   /**
    * Clear data for a specific key
    */
-  clear(key: string): void {
-    this.cache.delete(key);
+  clear(key?: string): void {
+    if (typeof key === 'string') {
+      this.cache.delete(key);
+    } else {
+      this.clearAll();
+    }
   }
 
   /**
