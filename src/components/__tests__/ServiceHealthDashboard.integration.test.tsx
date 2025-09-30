@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import ServiceHealthDashboard from '../../components/ServiceHealthDashboard';
 
 // Mock all the dependencies
+/* eslint-disable @typescript-eslint/no-explicit-any */
 vi.mock('reactflow', () => ({
   __esModule: true,
   default: ({ children, ...props }: any) => (
@@ -20,6 +21,7 @@ vi.mock('reactflow', () => ({
   useEdgesState: () => [[], vi.fn(), vi.fn()],
   MarkerType: { ArrowClosed: 'arrowclosed' },
 }));
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 vi.mock('../../hooks/useStatusUpdates', () => ({
   useStatusUpdates: () => ({

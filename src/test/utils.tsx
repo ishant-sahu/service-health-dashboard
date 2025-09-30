@@ -1,4 +1,5 @@
-import { render, RenderOptions } from '@testing-library/react';
+/* eslint-disable react-refresh/only-export-components */
+import { render, RenderOptions, waitFor } from '@testing-library/react';
 import { ReactElement } from 'react';
 
 // Custom render function that includes providers
@@ -8,7 +9,14 @@ const customRender = (
 ) => render(ui, { ...options });
 
 // Test data generators
-export const createMockServiceData = (overrides = {}) => ({
+export const createMockServiceData = (
+  overrides: Partial<{
+    name: string;
+    tech: string;
+    version: string;
+    status: string;
+  }> = {}
+) => ({
   name: 'Test Service',
   tech: 'Node.js',
   version: '1.0.0',
@@ -16,7 +24,14 @@ export const createMockServiceData = (overrides = {}) => ({
   ...overrides,
 });
 
-export const createMockConnectionData = (overrides = {}) => ({
+export const createMockConnectionData = (
+  overrides: Partial<{
+    id: string;
+    source: string;
+    target: string;
+    status: string;
+  }> = {}
+) => ({
   id: 'test-connection',
   source: 'service-1',
   target: 'service-2',
@@ -24,14 +39,27 @@ export const createMockConnectionData = (overrides = {}) => ({
   ...overrides,
 });
 
-export const createMockMetricsData = (overrides = {}) => ({
+export const createMockMetricsData = (
+  overrides: Partial<{
+    rps: number;
+    latency: number;
+    errorRate: number;
+  }> = {}
+) => ({
   rps: 500,
   latency: 150,
   errorRate: 2.5,
   ...overrides,
 });
 
-export const createMockDashboardStats = (overrides = {}) => ({
+export const createMockDashboardStats = (
+  overrides: Partial<{
+    total: number;
+    healthy: number;
+    degraded: number;
+    offline: number;
+  }> = {}
+) => ({
   total: 10,
   healthy: 7,
   degraded: 2,
@@ -110,7 +138,11 @@ export const waitForStatusChange = async () => {
 };
 
 // Assertion helpers
-export const expectMetricsInRange = (metrics: any) => {
+export const expectMetricsInRange = (metrics: {
+  rps: number;
+  latency: number;
+  errorRate: number;
+}) => {
   expect(metrics.rps).toBeGreaterThanOrEqual(300);
   expect(metrics.rps).toBeLessThanOrEqual(1000);
   expect(metrics.latency).toBeGreaterThanOrEqual(50);

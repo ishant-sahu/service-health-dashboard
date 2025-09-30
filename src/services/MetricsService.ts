@@ -42,7 +42,7 @@ class MetricsService extends StreamService<MetricsEvent, MetricsConfig> {
           timestamp: Date.now(),
         };
         this.emit(event);
-      } catch (_err) {
+      } catch {
         // Swallow generator errors to keep stream stable during tests
       }
     }, this.config.interval);

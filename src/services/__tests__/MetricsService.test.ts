@@ -13,12 +13,14 @@ vi.mock('../../data/mock', () => ({
 
 describe('MetricsService', () => {
   let metricsService: MetricsService | undefined;
-  let mockGenerateMetrics: jest.Mock | any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockGenerateMetrics: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockGenerateMetrics = vi.mocked(generateMetrics as any);
     // Ensure a known-good implementation for each test
     mockGenerateMetrics.mockReset();
@@ -199,8 +201,6 @@ describe('MetricsService', () => {
     const mockHandler = vi.fn();
     metricsService.subscribe(mockHandler);
     metricsService.start();
-
-    const startTime = Date.now();
 
     vi.advanceTimersByTime(1000);
     const firstCallTime = Date.now();
