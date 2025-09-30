@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import DashboardHeader from '../../components/DashboardHeader';
-import { DEVICE_TYPES } from '../../constants/dashboard';
 
 // Mock the responsive utility
 vi.mock('../../utils/responsive', () => ({

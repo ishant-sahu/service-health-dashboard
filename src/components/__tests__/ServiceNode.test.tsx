@@ -75,10 +75,7 @@ describe('ServiceNode', () => {
   });
 
   it('should handle keyboard events', () => {
-    const mockClickEvent = new MouseEvent('click', {
-      bubbles: true,
-      cancelable: true,
-    });
+    // No-op: event object not needed; we assert dispatchEvent calls
     const dispatchEventSpy = vi.spyOn(Element.prototype, 'dispatchEvent');
 
     render(<ServiceNode data={mockServiceData} />);
@@ -131,15 +128,15 @@ describe('ServiceNode', () => {
 
   it('should render different tech icons', () => {
     const testCases = [
-      { tech: 'React', expectedIcon: 'Monitor' },
-      { tech: 'Node.js', expectedIcon: 'Server' },
-      { tech: 'Go', expectedIcon: 'Zap' },
-      { tech: 'PostgreSQL', expectedIcon: 'Database' },
-      { tech: 'Redis', expectedIcon: 'Layers' },
-      { tech: 'Unknown', expectedIcon: 'Server' },
+      { tech: 'React' },
+      { tech: 'Node.js' },
+      { tech: 'Go' },
+      { tech: 'PostgreSQL' },
+      { tech: 'Redis' },
+      { tech: 'Unknown' },
     ];
 
-    testCases.forEach(({ tech, expectedIcon }) => {
+    testCases.forEach(({ tech }) => {
       const { unmount } = render(
         <ServiceNode data={{ ...mockServiceData, tech }} />
       );
