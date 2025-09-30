@@ -87,7 +87,7 @@ src/
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20+
 - npm or yarn
 
 ### Installation
@@ -120,6 +120,24 @@ src/
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
 - `npm run lint` - Run ESLint
+
+## 🧪 Testing
+
+- Run the test suite:
+
+  ```bash
+  npm run test
+  ```
+
+## ♿ Accessibility
+
+This project includes built-in accessibility support:
+
+- Proper ARIA roles and labels for interactive elements and regions
+- Keyboard navigation and focus management in the `DetailsPanel`
+- Screen reader announcements for real-time metrics updates
+- High-contrast status indicators and semantic structure (`dl`/`dt`/`dd`)
+- Responsive behavior that preserves accessibility across device sizes
 
 ## 📊 Data Structure
 

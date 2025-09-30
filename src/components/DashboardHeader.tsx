@@ -44,6 +44,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   return (
     <header
       className={`${HEADER_CONSTANTS.LAYOUT.HEADER_CLASSES} ${HEADER_CONSTANTS.PADDING[deviceType]}`}
+      role="banner"
     >
       <div
         className={`${HEADER_CONSTANTS.LAYOUT.FLEX_CONTAINER} ${HEADER_CONSTANTS.GAPS.XLARGE}`}
@@ -54,6 +55,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           <div className={`flex items-center ${HEADER_CONSTANTS.GAPS.LARGE}`}>
             <Activity
               className={`${HEADER_CONSTANTS.ICON_SIZES[deviceType]} text-primary`}
+              aria-hidden="true"
             />
             <h1
               className={`${HEADER_CONSTANTS.TITLE_SIZES[deviceType]} font-bold`}
@@ -64,15 +66,20 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 
           <div
             className={`${HEADER_CONSTANTS.LAYOUT.STATS_CONTAINER} ${HEADER_CONSTANTS.RESPONSIVE_GAPS.MOBILE} ${HEADER_CONSTANTS.RESPONSIVE_GAPS.DESKTOP}`}
+            role="region"
+            aria-label="Service status summary"
           >
             <Card
               className={`${HEADER_CONSTANTS.STAT_CARD_PADDING[deviceType]} ${COLOR_CONSTANTS.STATUS_BACKGROUNDS.HEALTHY} ${COLOR_CONSTANTS.STATUS_BORDERS.HEALTHY}`}
+              role="status"
+              aria-label={`${dashboardStats.healthy} healthy services`}
             >
               <div
                 className={`flex items-center ${HEADER_CONSTANTS.GAPS.SMALL} ${HEADER_CONSTANTS.GAPS.MEDIUM}`}
               >
                 <div
                   className={`${HEADER_CONSTANTS.STAT_DOT_SIZES[deviceType]} ${COLOR_CONSTANTS.STATUS_DOTS.HEALTHY} ${HEADER_CONSTANTS.LAYOUT.STAT_CARD_CLASSES}`}
+                  aria-hidden="true"
                 ></div>
                 <span
                   className={`${HEADER_CONSTANTS.STAT_TEXT_SIZES[deviceType]} font-medium`}
@@ -84,12 +91,15 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 
             <Card
               className={`${HEADER_CONSTANTS.STAT_CARD_PADDING[deviceType]} ${COLOR_CONSTANTS.STATUS_BACKGROUNDS.DEGRADED} ${COLOR_CONSTANTS.STATUS_BORDERS.DEGRADED}`}
+              role="status"
+              aria-label={`${dashboardStats.degraded} degraded services`}
             >
               <div
                 className={`flex items-center ${HEADER_CONSTANTS.GAPS.SMALL} ${HEADER_CONSTANTS.GAPS.MEDIUM}`}
               >
                 <div
                   className={`${HEADER_CONSTANTS.STAT_DOT_SIZES[deviceType]} ${COLOR_CONSTANTS.STATUS_DOTS.DEGRADED} ${HEADER_CONSTANTS.LAYOUT.STAT_CARD_CLASSES}`}
+                  aria-hidden="true"
                 ></div>
                 <span
                   className={`${HEADER_CONSTANTS.STAT_TEXT_SIZES[deviceType]} font-medium`}
@@ -101,12 +111,15 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 
             <Card
               className={`${HEADER_CONSTANTS.STAT_CARD_PADDING[deviceType]} ${COLOR_CONSTANTS.STATUS_BACKGROUNDS.OFFLINE} ${COLOR_CONSTANTS.STATUS_BORDERS.OFFLINE}`}
+              role="status"
+              aria-label={`${dashboardStats.offline} offline services`}
             >
               <div
                 className={`flex items-center ${HEADER_CONSTANTS.GAPS.SMALL} ${HEADER_CONSTANTS.GAPS.MEDIUM}`}
               >
                 <div
                   className={`${HEADER_CONSTANTS.STAT_DOT_SIZES[deviceType]} ${COLOR_CONSTANTS.STATUS_DOTS.OFFLINE} ${HEADER_CONSTANTS.LAYOUT.STAT_CARD_CLASSES}`}
+                  aria-hidden="true"
                 ></div>
                 <span
                   className={`${HEADER_CONSTANTS.STAT_TEXT_SIZES[deviceType]} font-medium`}
@@ -120,12 +133,15 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 
         <div
           className={`${HEADER_CONSTANTS.LAYOUT.BUTTONS_CONTAINER} ${HEADER_CONSTANTS.RESPONSIVE_GAPS.MOBILE} ${HEADER_CONSTANTS.RESPONSIVE_GAPS.DESKTOP}`}
+          role="toolbar"
+          aria-label="Dashboard controls"
         >
           <Button
             variant="outline"
             size="sm"
             onClick={onToggleDarkMode}
             className={`${HEADER_CONSTANTS.BUTTON_SIZES[deviceType]}`}
+            aria-label={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}
           >
             {isDarkMode
               ? HEADER_CONSTANTS.TEXTS.LIGHT
@@ -136,6 +152,8 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             size="sm"
             onClick={onTogglePanel}
             className={`${HEADER_CONSTANTS.BUTTON_SIZES[deviceType]}`}
+            aria-label={`${isPanelOpen ? 'Close' : 'Open'} details panel`}
+            aria-expanded={isPanelOpen}
           >
             {isPanelOpen ? (
               <PanelRightClose
@@ -144,6 +162,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                     ? HEADER_CONSTANTS.LAYOUT.BUTTON_ICON_SPACING
                     : ''
                 }`}
+                aria-hidden="true"
               />
             ) : (
               <PanelRight
@@ -152,6 +171,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                     ? HEADER_CONSTANTS.LAYOUT.BUTTON_ICON_SPACING
                     : ''
                 }`}
+                aria-hidden="true"
               />
             )}
             <span className={HEADER_CONSTANTS.LAYOUT.HIDDEN_MOBILE}>

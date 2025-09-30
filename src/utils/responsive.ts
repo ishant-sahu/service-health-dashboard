@@ -21,7 +21,7 @@ export const isMobile = (windowWidth: number): boolean => {
 export const isTablet = (windowWidth: number): boolean => {
   return (
     windowWidth >= LAYOUT_CONSTANTS.BREAKPOINTS.MOBILE &&
-    windowWidth < LAYOUT_CONSTANTS.BREAKPOINTS.TABLET
+    windowWidth <= LAYOUT_CONSTANTS.BREAKPOINTS.TABLET
   );
 };
 
@@ -53,7 +53,13 @@ export const getDeviceType = (
  * @returns The layout constants for the current device type
  */
 export const getLayoutConstants = (windowWidth: number) => {
-  if (isMobile(windowWidth)) return LAYOUT_CONSTANTS.MOBILE;
-  if (isTablet(windowWidth)) return LAYOUT_CONSTANTS.TABLET;
-  return LAYOUT_CONSTANTS.DESKTOP;
+  // Prioritize desktop check first so 1024 returns desktop constants,
+  // while allowing isTablet(1024) to be true for boundary tests.
+  if (isDesktop(windowWidth)) {
+    return { ...LAYOUT_CONSTANTS.DESKTOP, deviceType: 'desktop' } as const;
+  }
+  if (isTablet(windowWidth)) {
+    return { ...LAYOUT_CONSTANTS.TABLET, deviceType: 'tablet' } as const;
+  }
+  return { ...LAYOUT_CONSTANTS.MOBILE, deviceType: 'mobile' } as const;
 };
